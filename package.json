@@ -1,0 +1,15 @@
+{
+  "name": "dashboard-ls",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "cd client && npm install && npm run build",
+    "start": "node server.js",
+    "postinstall": "npm run build"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  }
+}
