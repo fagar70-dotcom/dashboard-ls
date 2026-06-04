@@ -1,7 +1,7 @@
 {
-  "admin":     { "pass": "admin123", "role": "admin",     "sucursal": null,    "label": "Administrador" },
-  "enc_24set": { "pass": "24set123", "role": "encargado", "sucursal": "24SET", "label": "Encargado 24SET" },
-  "enc_mendo": { "pass": "mendo123", "role": "encargado", "sucursal": "MENDO", "label": "Encargado MENDO" },
-  "enc_mune":  { "pass": "mune123",  "role": "encargado", "sucursal": "MUÑE",  "label": "Encargado MUÑE" },
-  "enc_sal":   { "pass": "sal123",   "role": "encargado", "sucursal": "SAL",   "label": "Encargado SAL" }
+  "admin":    { "pass": "admin123",     "role": "admin",     "sucursal": null,    "label": "Administrador" },
+  "nbustos":  { "pass": "alberdi145",   "role": "encargado", "sucursal": "SAL",   "label": "N. Bustos" },
+  "scampos":  { "pass": "24desept147",  "role": "encargado", "sucursal": "24SET", "label": "S. Campos" },
+  "epacheco": { "pass": "mendoza651",   "role": "encargado", "sucursal": "MENDO", "label": "E. Pacheco" },
+  "mpalacio": { "pass": "munecas44",    "role": "encargado", "sucursal": "MUÑE",  "label": "M. Palacio" }
 }
