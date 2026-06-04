@@ -245,7 +245,6 @@ function Diario({data,fecha,auth,c}){
   const mejor = SUCURSALES.reduce((a,s)=>(hoy[s]||0)>(hoy[a]||0)?s:a,SUCURSALES[0]);
   const totalGeneral = SUCURSALES.reduce((a,s)=>a+(hoy[s]||0),0);
   const totalGenRef = SUCURSALES.reduce((a,s)=>a+(ref[s]||0),0);
-  const partMiSuc = totalGeneral ? ((hoy[miSuc]||0)/totalGeneral*100) : 0;
 
   return (<>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
@@ -477,6 +476,8 @@ function UsuariosPanel({roles,users,setUsers,c}){
   const [editing,setEditing]=useState(null);
   const [form,setForm]=useState(null);
   const [verP,setVerP]=useState(false);
+  const [movil,setMovil]=useState(typeof window!=="undefined" && window.innerWidth<700);
+  useEffect(()=>{ const f=()=>setMovil(window.innerWidth<700); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
   if(!users) return <div style={{color:"#64748b",fontSize:13}}>Cargando usuarios…</div>;
 
   function startNew(){ setEditing("__new__"); setForm({user:"",pass:"",role:"encargado",sucursal:"24SET",label:""}); setVerP(false); }
@@ -503,15 +504,15 @@ function UsuariosPanel({roles,users,setUsers,c}){
 
   return (
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontSize:13,color:"#64748b"}}>Cada usuario hereda los permisos de su rol. Acá asignás credenciales, rol y sucursal.</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:8,flexWrap:"wrap"}}>
+        <div style={{fontSize:13,color:"#64748b",flex:1,minWidth:160}}>Cada usuario hereda los permisos de su rol. Acá asignás credenciales, rol y sucursal.</div>
         {!editing&&<button onClick={startNew} style={{background:"#3b82f6",border:"none",borderRadius:7,padding:"7px 14px",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Nuevo usuario</button>}
       </div>
 
       {editing&&form&&(
         <div style={{...c.card,marginBottom:12}}>
           <div style={{...c.lbl,marginBottom:12}}>{editing==="__new__"?"Nuevo usuario":"Editar: "+editing}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div style={{display:"grid",gridTemplateColumns:movil?"1fr":"1fr 1fr",gap:10,marginBottom:10}}>
             <div><div style={c.lbl}>Usuario</div><input style={inp} value={form.user} disabled={editing!=="__new__"} onChange={e=>setForm({...form,user:e.target.value})} placeholder="ej: enc_sal"/></div>
             <div><div style={c.lbl}>Contraseña {editing!=="__new__"&&<span style={{color:"#334155"}}>(vacío = no cambiar)</span>}</div>
               <div style={{position:"relative",display:"flex",alignItems:"center"}}>
@@ -541,32 +542,60 @@ function UsuariosPanel({roles,users,setUsers,c}){
         </div>
       )}
 
-      <div style={c.card}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
-            <td style={{padding:"8px"}}>Usuario</td><td style={{padding:"8px"}}>Rol</td><td style={{padding:"8px"}}>Sucursal</td>
-            <td style={{padding:"8px"}}>Vistas (del rol)</td><td style={{padding:"8px"}}>Montos</td><td style={{padding:"8px",textAlign:"right"}}>Acciones</td>
-          </tr></thead>
-          <tbody>
-            {Object.entries(users).map(([k,u])=>{
-              const cfg=roles[u.role]||{};
-              return (
-                <tr key={k} style={{borderTop:"1px solid #0f172a"}}>
-                  <td style={{padding:"8px"}}><b>{k}</b><div style={{fontSize:10,color:"#475569"}}>{u.label}</div></td>
-                  <td style={{padding:"8px"}}><span style={{padding:"2px 8px",borderRadius:5,fontSize:11,background:u.role==="admin"?"#3b82f6":"#334155",color:u.role==="admin"?"#fff":"#94a3b8"}}>{cfg.label||u.role}</span></td>
-                  <td style={{padding:"8px",color:u.sucursal?SUC_COLORS[u.sucursal]:"#64748b"}}>{u.sucursal||"todas"}</td>
-                  <td style={{padding:"8px",color:"#94a3b8"}}>{(cfg.vistas||[]).map(v=>VISTAS_INFO[v]?.icon).join(" ")}</td>
-                  <td style={{padding:"8px"}}>{cfg.verMontos?<span style={{color:"#4ade80"}}>✓</span>:<span style={{color:"#475569"}}>✗</span>}</td>
-                  <td style={{padding:"8px",textAlign:"right"}}>
-                    <button onClick={()=>startEdit(k)} style={{background:"transparent",border:"1px solid #334155",borderRadius:6,padding:"4px 10px",color:"#60a5fa",fontSize:11,cursor:"pointer",marginRight:6}}>editar</button>
-                    {k!=="admin"&&<button onClick={()=>borrar(k)} style={{background:"transparent",border:"1px solid #7f1d1d",borderRadius:6,padding:"4px 10px",color:"#f87171",fontSize:11,cursor:"pointer"}}>borrar</button>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {movil ? (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {Object.entries(users).map(([k,u])=>{
+            const cfg=roles[u.role]||{};
+            return (
+              <div key={k} style={{...c.card,padding:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:600}}>{k}</div>
+                    <div style={{fontSize:11,color:"#64748b"}}>{u.label}</div>
+                  </div>
+                  <span style={{padding:"3px 10px",borderRadius:5,fontSize:11,background:u.role==="admin"?"#3b82f6":"#334155",color:u.role==="admin"?"#fff":"#94a3b8"}}>{cfg.label||u.role}</span>
+                </div>
+                <div style={{display:"flex",gap:16,fontSize:12,color:"#94a3b8",marginBottom:10,flexWrap:"wrap"}}>
+                  <span>📍 <b style={{color:u.sucursal?SUC_COLORS[u.sucursal]:"#94a3b8"}}>{u.sucursal||"todas"}</b></span>
+                  <span>Vistas: {(cfg.vistas||[]).map(v=>VISTAS_INFO[v]?.icon).join(" ")}</span>
+                  <span>Montos: {cfg.verMontos?"✓":"✗"}</span>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>startEdit(k)} style={{flex:1,background:"transparent",border:"1px solid #334155",borderRadius:6,padding:"7px",color:"#60a5fa",fontSize:12,cursor:"pointer"}}>editar</button>
+                  {k!=="admin"&&<button onClick={()=>borrar(k)} style={{flex:1,background:"transparent",border:"1px solid #7f1d1d",borderRadius:6,padding:"7px",color:"#f87171",fontSize:12,cursor:"pointer"}}>borrar</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={c.card}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+              <td style={{padding:"8px"}}>Usuario</td><td style={{padding:"8px"}}>Rol</td><td style={{padding:"8px"}}>Sucursal</td>
+              <td style={{padding:"8px"}}>Vistas (del rol)</td><td style={{padding:"8px"}}>Montos</td><td style={{padding:"8px",textAlign:"right"}}>Acciones</td>
+            </tr></thead>
+            <tbody>
+              {Object.entries(users).map(([k,u])=>{
+                const cfg=roles[u.role]||{};
+                return (
+                  <tr key={k} style={{borderTop:"1px solid #0f172a"}}>
+                    <td style={{padding:"8px"}}><b>{k}</b><div style={{fontSize:10,color:"#475569"}}>{u.label}</div></td>
+                    <td style={{padding:"8px"}}><span style={{padding:"2px 8px",borderRadius:5,fontSize:11,background:u.role==="admin"?"#3b82f6":"#334155",color:u.role==="admin"?"#fff":"#94a3b8"}}>{cfg.label||u.role}</span></td>
+                    <td style={{padding:"8px",color:u.sucursal?SUC_COLORS[u.sucursal]:"#64748b"}}>{u.sucursal||"todas"}</td>
+                    <td style={{padding:"8px",color:"#94a3b8"}}>{(cfg.vistas||[]).map(v=>VISTAS_INFO[v]?.icon).join(" ")}</td>
+                    <td style={{padding:"8px"}}>{cfg.verMontos?<span style={{color:"#4ade80"}}>✓</span>:<span style={{color:"#475569"}}>✗</span>}</td>
+                    <td style={{padding:"8px",textAlign:"right"}}>
+                      <button onClick={()=>startEdit(k)} style={{background:"transparent",border:"1px solid #334155",borderRadius:6,padding:"4px 10px",color:"#60a5fa",fontSize:11,cursor:"pointer",marginRight:6}}>editar</button>
+                      {k!=="admin"&&<button onClick={()=>borrar(k)} style={{background:"transparent",border:"1px solid #7f1d1d",borderRadius:6,padding:"4px 10px",color:"#f87171",fontSize:11,cursor:"pointer"}}>borrar</button>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
