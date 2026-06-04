@@ -144,8 +144,8 @@ export default function App(){
     page:{minHeight:"100vh",background:"#0f172a",fontFamily:"system-ui,sans-serif",color:"#f1f5f9",display:"flex",flexDirection:"column"},
     hdr:{background:"#1e293b",borderBottom:"1px solid #334155",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"},
     body:{display:"flex",flex:1},
-    nav:{width:80,background:"#1e293b",borderRight:"1px solid #334155",display:"flex",flexDirection:"column",alignItems:"center",paddingTop:12,gap:2},
-    main:{flex:1,padding:14},
+    nav:{width:56,background:"#1e293b",borderRight:"1px solid #334155",display:"flex",flexDirection:"column",alignItems:"center",paddingTop:12,gap:2},
+    main:{flex:1,padding:14,minWidth:0},
     card:{background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:14},
     lbl:{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6},
     big:{fontSize:32,fontWeight:700,lineHeight:1.1},
@@ -178,11 +178,11 @@ export default function App(){
             const info = t==="usuarios" ? {icon:"👥",label:"Usuarios"} : VISTAS_INFO[t];
             return (
               <button key={t} onClick={()=>setVista(t)}
-                style={{width:68,padding:"10px 4px",background:vista===t?"#0f172a":"transparent",border:"none",
+                style={{width:50,padding:"8px 2px",background:vista===t?"#0f172a":"transparent",border:"none",
                   borderLeft:vista===t?"2px solid #3b82f6":"2px solid transparent",borderRadius:"0 6px 6px 0",cursor:"pointer",
                   display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                 <span style={{fontSize:18}}>{info.icon}</span>
-                <span style={{fontSize:10,color:vista===t?"#60a5fa":"#475569"}}>{info.label}</span>
+                <span style={{fontSize:9,color:vista===t?"#60a5fa":"#475569",textAlign:"center",lineHeight:1.1}}>{info.label}</span>
               </button>
             );
           })}
@@ -223,9 +223,7 @@ function Diario({data,fecha,auth,c}){
       <div style={{...c.card,background:"#16261c",borderColor:"#22c55e"}}><div style={{...c.lbl,color:"#4ade80"}}>{esEncargado?"Unidades hoy":"Total hoy"}</div><div style={{...c.big,color:"#4ade80"}}>{fmt(totalHoy)}</div><div style={c.sub}>{cap(dayName(fecha))} · {esEncargado?miSuc:"unidades"}</div></div>
       <div style={{...c.card,background:"#1e2536",borderColor:"#475569"}}><div style={{...c.lbl,color:"#94a3b8"}}>Ref. ant.</div><div style={{...c.big,color:"#94a3b8"}}>{fmt(totalRef)}</div><div style={c.sub}>{fmtDate(fechaRef)}</div></div>
       <div style={c.card}><div style={c.lbl}>Variación</div><div style={{...c.big,color:signColor(varTotal)}}>{sign(varTotal)}</div><div style={c.sub}>{(totalHoy-totalRef>=0?"+":"")+fmt(totalHoy-totalRef)} u</div></div>
-      {esEncargado
-        ? <div style={c.card}><div style={c.lbl}>Participación</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[miSuc]}}>{partMiSuc.toFixed(1)}%</div><div style={c.sub}>del total general</div></div>
-        : <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
+      {!esEncargado && <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
     </div>
 
     <div style={c.card}>
