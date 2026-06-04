@@ -48,11 +48,13 @@ const makeToken = () => Math.random().toString(36).slice(2) + Date.now().toStrin
 
 app.post("/api/login", (req, res) => {
   const { user, pass } = req.body || {};
-  const u = USERS[user];
+  const key = (user || "").trim().toLowerCase();
+  const realKey = Object.keys(USERS).find(k => k.toLowerCase() === key);
+  const u = realKey ? USERS[realKey] : null;
   if (!u || u.pass !== pass) return res.status(401).json({ ok: false, error: "Credenciales inválidas" });
   const token = makeToken();
-  sessions[token] = { user, ...u };
-  res.json({ ok: true, token, role: u.role, sucursal: u.sucursal, label: u.label || user });
+  sessions[token] = { user: realKey, ...u };
+  res.json({ ok: true, token, role: u.role, sucursal: u.sucursal, label: u.label || realKey });
 });
 
 function auth(req, res, next) {
@@ -89,7 +91,7 @@ app.get("/api/users", auth, adminOnly, (req, res) => {
 });
 
 app.put("/api/users/:user", auth, adminOnly, (req, res) => {
-  const key = req.params.user;
+  const key = req.params.user.trim().toLowerCase();
   const { pass, role, sucursal, label } = req.body || {};
   const existing = USERS[key];
   if (!existing && !pass) return res.status(400).json({ ok: false, error: "Contraseña requerida" });
@@ -106,8 +108,9 @@ app.put("/api/users/:user", auth, adminOnly, (req, res) => {
 });
 
 app.delete("/api/users/:user", auth, adminOnly, (req, res) => {
-  if (req.params.user === "admin") return res.status(400).json({ ok: false, error: "No se puede borrar admin" });
-  delete USERS[req.params.user];
+  const key = req.params.user.trim().toLowerCase();
+  if (key === "admin") return res.status(400).json({ ok: false, error: "No se puede borrar admin" });
+  delete USERS[key];
   saveUsers(USERS);
   res.json({ ok: true });
 });
