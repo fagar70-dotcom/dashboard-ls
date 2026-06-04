@@ -22,7 +22,6 @@ export async function fetchVentas({ action, fecha_desde, fecha_fin, sucursales }
   return r.json();
 }
 
-// Variaciones % de todos los locales (solo % — para encargados)
 export async function fetchVariaciones(fecha_desde, fecha_fin) {
   const r = await fetch("/api/variaciones", {
     method: "POST", headers: headers(),
@@ -31,7 +30,6 @@ export async function fetchVariaciones(fecha_desde, fecha_fin) {
   return r.json();
 }
 
-// ── Roles ──
 export async function getRoles() {
   const r = await fetch("/api/roles", { headers: headers() });
   return r.json();
@@ -41,13 +39,11 @@ export async function saveRole(rol, data) {
   return r.json();
 }
 
-// ── Usuarios (solo admin) ──
 export async function getUsers() {
   const r = await fetch("/api/users", { headers: headers() });
   return r.json();
 }
 export async function saveUser(user, data) {
-  // crea o actualiza (upsert) por PUT
   const r = await fetch(`/api/users/${encodeURIComponent(user)}`, { method: "PUT", headers: headers(), body: JSON.stringify(data) });
   return r.json();
 }
