@@ -66,6 +66,13 @@ export default function App(){
   const [step,setStep]     = useState("");
   const [error,setError]   = useState("");
   const [data,setData]     = useState(null);
+  const [esMovil,setEsMovil] = useState(typeof window!=="undefined" && window.innerWidth<700);
+
+  useEffect(()=>{
+    const onResize=()=>setEsMovil(window.innerWidth<700);
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
 
   const isAdmin = auth?.role==="admin";
   const miRol = (roles && auth) ? roles[auth.role] : null;
@@ -172,23 +179,26 @@ export default function App(){
         </div>
       </div>
 
-      <div style={c.body}>
-        <div style={c.nav}>
-          {tabs.map(t=>{
-            const info = t==="usuarios" ? {icon:"👥",label:"Usuarios"} : VISTAS_INFO[t];
-            return (
-              <button key={t} onClick={()=>setVista(t)}
-                style={{width:50,padding:"8px 2px",background:vista===t?"#0f172a":"transparent",border:"none",
-                  borderLeft:vista===t?"2px solid #3b82f6":"2px solid transparent",borderRadius:"0 6px 6px 0",cursor:"pointer",
-                  display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <span style={{fontSize:18}}>{info.icon}</span>
-                <span style={{fontSize:9,color:vista===t?"#60a5fa":"#475569",textAlign:"center",lineHeight:1.1}}>{info.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      <div style={esMovil ? {flex:1,display:"flex",flexDirection:"column"} : c.body}>
+        {/* NAV LATERAL (solo PC) */}
+        {!esMovil && (
+          <div style={c.nav}>
+            {tabs.map(t=>{
+              const info = t==="usuarios" ? {icon:"👥",label:"Usuarios"} : VISTAS_INFO[t];
+              return (
+                <button key={t} onClick={()=>setVista(t)}
+                  style={{width:50,padding:"8px 2px",background:vista===t?"#0f172a":"transparent",border:"none",
+                    borderLeft:vista===t?"2px solid #3b82f6":"2px solid transparent",borderRadius:"0 6px 6px 0",cursor:"pointer",
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                  <span style={{fontSize:18}}>{info.icon}</span>
+                  <span style={{fontSize:9,color:vista===t?"#60a5fa":"#475569",textAlign:"center",lineHeight:1.1}}>{info.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        <div style={c.main}>
+        <div style={{...c.main, paddingBottom: esMovil ? 76 : 14}}>
           {error&&<div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12,marginBottom:12}}>{error}</div>}
           {loading&&<div style={{textAlign:"center",padding:"4rem",color:"#475569",fontSize:13}}>{step||"Cargando…"}</div>}
 
@@ -197,6 +207,25 @@ export default function App(){
           {data&&!loading&&vista==="metricas"  && misVistas.includes("metricas") && <Metricas data={data} fecha={fecha} auth={auth} c={c}/>}
           {vista==="usuarios" && isAdmin && roles && <AdminPanel roles={roles} setRoles={setRoles} c={c}/>}
         </div>
+
+        {/* NAV INFERIOR (solo celular) */}
+        {esMovil && (
+          <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#1e293b",borderTop:"1px solid #334155",
+            display:"flex",justifyContent:"space-around",padding:"6px 0",zIndex:50}}>
+            {tabs.map(t=>{
+              const info = t==="usuarios" ? {icon:"👥",label:"Usuarios"} : VISTAS_INFO[t];
+              return (
+                <button key={t} onClick={()=>setVista(t)}
+                  style={{flex:1,padding:"6px 2px",background:"transparent",border:"none",cursor:"pointer",
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+                    borderTop:vista===t?"2px solid #3b82f6":"2px solid transparent"}}>
+                  <span style={{fontSize:20}}>{info.icon}</span>
+                  <span style={{fontSize:10,color:vista===t?"#60a5fa":"#94a3b8"}}>{info.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
