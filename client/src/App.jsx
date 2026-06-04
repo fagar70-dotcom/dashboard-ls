@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser, removeUser, saveRole } from "./api";
+import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser, removeUser, saveRole, fetchVariaciones } from "./api";
 
 // ════════════════════════════════════════════════════════════
 //  Dashboard La Sorpresa — PRODUCCIÓN
@@ -106,6 +106,12 @@ export default function App(){
       setStep("Cargando unidades…");
       const [uHoy,uRef] = await Promise.all([ getUnidadesDia(fecha,suc), getUnidadesDia(fechaRef,suc) ]);
 
+      // Encargado: traer variaciones % de todos los locales (sin valores)
+      let variaciones = null;
+      if(auth.role==="encargado"){
+        try { const r = await fetchVariaciones(fecha, fechaRef); if(r.ok) variaciones = r.variaciones; } catch(e){}
+      }
+
       let montosHoy={}, montosRef={};
       if(vista==="montos"||vista==="metricas"){
         setStep("Cargando montos…");
@@ -115,7 +121,7 @@ export default function App(){
           montosRef[s] = await getMontosSuc(fechaRef,s);
         }
       }
-      setData({ uHoy, uRef, montosHoy, montosRef, fechaRef });
+      setData({ uHoy, uRef, montosHoy, montosRef, fechaRef, variaciones });
     } catch(e){ setError(e.message); }
     setLoading(false); setStep("");
   },[auth,fecha,vista]);
@@ -242,8 +248,10 @@ function Diario({data,fecha,auth,c}){
         </tr></thead>
         <tbody>
           {SUCURSALES.map(suc=>{
-            const h=hoy[suc]||0,a=ref[suc]||0,v=pct(h,a),col=SUC_COLORS[suc];
+            const h=hoy[suc]||0,a=ref[suc]||0,col=SUC_COLORS[suc];
             const oculto = esEncargado && suc!==miSuc; const G="—";
+            // Para locales ajenos del encargado, usar la variación del backend (solo %)
+            const v = oculto ? (data.variaciones?.[suc] ?? null) : pct(h,a);
             return (
               <tr key={suc} style={{borderTop:"1px solid #0f172a",opacity:oculto?0.7:1}}>
                 <td style={{padding:"9px 8px"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><span style={{width:8,height:8,borderRadius:"50%",background:col}}/><span style={{fontWeight:500}}>{suc}</span></span></td>
