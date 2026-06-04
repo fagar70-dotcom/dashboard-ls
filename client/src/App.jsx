@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser, removeUser, saveRole, fetchVariaciones } from "./api";
 
-// ════════════════════════════════════════════════════════════
-//  Dashboard La Sorpresa — PRODUCCIÓN
-//  Habla solo con /api del backend. La API key vive en el backend.
-//  Comparación interanual: siempre −364 días (mismo día de semana).
-// ════════════════════════════════════════════════════════════
-
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
 const SUC_COLORS = { "24SET":"#4ade80","MENDO":"#60a5fa","MUÑE":"#facc15","SAL":"#f87171" };
 const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"} };
@@ -22,12 +16,10 @@ const parseNum = s => parseFloat((s||"0").replace(/\*+/g,"").replace(/\./g,"").r
 
 const today   = () => new Date().toISOString().slice(0,10);
 const addDays = (s,n)=>{ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
-const firstOfMonth = s => s.slice(0,8)+"01";
 const fmtDate = iso => { const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
 const dayName = iso => new Date(iso+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long"});
 const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 
-// ── Parsers de tablas Markdown del sistema ──
 function rowCells(line){ return line.split("|").map(c=>c.replace(/\*/g,"").trim()).filter((c,i,arr)=>!(i===0&&c==="")&&!(i===arr.length-1&&c==="")); }
 function tableRows(text){
   const lines=(text||"").split("\n").map(l=>l.trim()).filter(l=>l.includes("|"));
@@ -35,13 +27,11 @@ function tableRows(text){
   for(const line of lines){ if(/^\|?[\s:|-]+\|?$/.test(line))continue; const c=rowCells(line); if(c.length)out.push(c); }
   return out;
 }
-// "| Sucursal | Tipo1 | Tipo2 | Total |"
 function parseUnidades(text){
   const map={};
   tableRows(text).forEach(c=>{ const s=(c[0]||"").trim(); if(SUCURSALES.includes(s)) map[s]={tipo1:parseNum(c[1]),tipo2:parseNum(c[2]),total:parseNum(c[3])}; });
   return map;
 }
-// "Tipo 1: N líneas, N u., $ importe (util. $ U)"  → por sucursal individual
 function parseMontos(text){
   const grab=(label)=>{
     const re=new RegExp(label+":\\s*(\\d+)\\s*l.neas?,\\s*([\\d.,]+)\\s*u\\.?,\\s*\\$\\s*([\\d.,]+)[^$]*\\(util\\.\\s*\\$\\s*([\\d.,]+)","i");
@@ -51,25 +41,23 @@ function parseMontos(text){
   return { tipo1:grab("Tipo 1"), tipo2:grab("Tipo 2"), total:grab("Total") };
 }
 
-// ── Carga de datos del día (unidades por sucursal hoy + ref) ──
 async function getUnidadesDia(fecha, sucursales){
   const res = await fetchVentas({ action:"unidades_sucursal_tipo", fecha_desde:fecha, fecha_fin:fecha, sucursales });
   const raw = res?.texto || res?.raw || (typeof res==="string"?res:"");
   return parseUnidades(raw);
 }
-// montos por sucursal (una llamada por sucursal para tener desglose)
 async function getMontosSuc(fecha, suc){
   const res = await fetchVentas({ action:"montos_por_tipo", fecha_desde:fecha, fecha_fin:fecha, sucursales:suc });
   const raw = res?.texto || res?.raw || (typeof res==="string"?res:"");
   return parseMontos(raw);
 }
-// líneas por sucursal (para tickets) — vienen del mismo parseMontos (tipo1.lineas + tipo2.lineas)
 
 export default function App(){
   const [roles,setRoles]   = useState(null);
   const [auth,setAuth]     = useState(null);
   const [lu,setLu]         = useState("");
   const [lp,setLp]         = useState("");
+  const [verPass,setVerPass] = useState(false);
   const [loginErr,setLoginErr] = useState("");
   const [vista,setVista]   = useState("diario");
   const [fecha,setFecha]   = useState(today());
@@ -89,8 +77,7 @@ export default function App(){
     const r = await apiLogin(lu.trim(), lp);
     if(!r.ok){ setLoginErr(r.error||"Error"); return; }
     setToken(r.token);
-    setAuth({ user:lu.trim(), role:r.role, sucursal:r.sucursal, label:r.label });
-    // cargar definición de roles
+    setAuth({ user:lu.trim().toLowerCase(), role:r.role, sucursal:r.sucursal, label:r.label });
     const rr = await getRoles();
     if(rr.ok) setRoles(rr.roles);
     const rolVistas = rr.ok ? (rr.roles[r.role]?.vistas||["diario"]) : ["diario"];
@@ -106,7 +93,6 @@ export default function App(){
       setStep("Cargando unidades…");
       const [uHoy,uRef] = await Promise.all([ getUnidadesDia(fecha,suc), getUnidadesDia(fechaRef,suc) ]);
 
-      // Encargado: traer variaciones % de todos los locales (sin valores)
       let variaciones = null;
       if(auth.role==="encargado"){
         try { const r = await fetchVariaciones(fecha, fechaRef); if(r.ok) variaciones = r.variaciones; } catch(e){}
@@ -128,7 +114,6 @@ export default function App(){
 
   useEffect(()=>{ if(auth) load(); },[auth,fecha,vista]);
 
-  // ──────────── LOGIN ────────────
   if(!auth) return (
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
       <div style={{background:"#1e293b",border:"1px solid #334155",borderRadius:16,padding:"2rem",width:300}}>
@@ -140,8 +125,14 @@ export default function App(){
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <input placeholder="Usuario" value={lu} onChange={e=>setLu(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}
             style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 12px",color:"#f1f5f9",fontSize:14,outline:"none"}}/>
-          <input type="password" placeholder="Contraseña" value={lp} onChange={e=>setLp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}
-            style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 12px",color:"#f1f5f9",fontSize:14,outline:"none"}}/>
+          <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+            <input type={verPass?"text":"password"} placeholder="Contraseña" value={lp} onChange={e=>setLp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              style={{background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 38px 8px 12px",color:"#f1f5f9",fontSize:14,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+            <button onClick={()=>setVerPass(v=>!v)} type="button" title={verPass?"Ocultar":"Mostrar"}
+              style={{position:"absolute",right:8,background:"transparent",border:"none",cursor:"pointer",fontSize:16,padding:0,lineHeight:1}}>
+              {verPass?"🙈":"👁"}
+            </button>
+          </div>
           {loginErr&&<div style={{fontSize:12,color:"#f87171"}}>{loginErr}</div>}
           <button onClick={handleLogin} style={{background:"#3b82f6",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",marginTop:4}}>Ingresar</button>
         </div>
@@ -211,7 +202,6 @@ export default function App(){
   );
 }
 
-// ════════ DIARIO ════════
 function Diario({data,fecha,auth,c}){
   const esEncargado = auth.role==="encargado";
   const miSuc = auth.sucursal;
@@ -250,7 +240,6 @@ function Diario({data,fecha,auth,c}){
           {SUCURSALES.map(suc=>{
             const h=hoy[suc]||0,a=ref[suc]||0,col=SUC_COLORS[suc];
             const oculto = esEncargado && suc!==miSuc; const G="—";
-            // Para locales ajenos del encargado, usar la variación del backend (solo %)
             const v = oculto ? (data.variaciones?.[suc] ?? null) : pct(h,a);
             return (
               <tr key={suc} style={{borderTop:"1px solid #0f172a",opacity:oculto?0.7:1}}>
@@ -277,7 +266,6 @@ function Diario({data,fecha,auth,c}){
   </>);
 }
 
-// ════════ MONTOS ════════
 function Montos({data,fecha,auth,c}){
   const fechaRef=data.fechaRef;
   const ivaSuc=m=>m?(m.tipo1.importe*1.21+m.tipo2.importe):0;
@@ -330,7 +318,6 @@ function Montos({data,fecha,auth,c}){
   </>);
 }
 
-// ════════ MÉTRICAS ════════
 function Metricas({data,fecha,auth,c}){
   const fechaRef=data.fechaRef;
   const tickets=(m,suc)=>{ const lin=m?(m.tipo1.lineas+m.tipo2.lineas):0; return Math.round(lin/(RATIO_TICKET[suc]||1)); };
@@ -395,7 +382,6 @@ function Metricas({data,fecha,auth,c}){
   </>);
 }
 
-// ════════ PANEL ADMIN: ROLES + USUARIOS ════════
 function AdminPanel({roles,setRoles,c}){
   const [sub,setSub]=useState("usuarios");
   const [users,setUsers]=useState(null);
@@ -463,14 +449,15 @@ function RolesPanel({roles,setRoles,c}){
 function UsuariosPanel({roles,users,setUsers,c}){
   const [editing,setEditing]=useState(null);
   const [form,setForm]=useState(null);
+  const [verP,setVerP]=useState(false);
   if(!users) return <div style={{color:"#64748b",fontSize:13}}>Cargando usuarios…</div>;
 
-  function startNew(){ setEditing("__new__"); setForm({user:"",pass:"",role:"encargado",sucursal:"24SET",label:""}); }
-  function startEdit(u){ setEditing(u); setForm({user:u,...users[u],pass:""}); }
+  function startNew(){ setEditing("__new__"); setForm({user:"",pass:"",role:"encargado",sucursal:"24SET",label:""}); setVerP(false); }
+  function startEdit(u){ setEditing(u); setForm({user:u,...users[u],pass:""}); setVerP(false); }
   function cancel(){ setEditing(null); setForm(null); }
 
   async function save(){
-    const key=(form.user||"").trim();
+    const key=(form.user||"").trim().toLowerCase();
     if(!key){ alert("Falta el nombre de usuario"); return; }
     if(editing==="__new__"&&users[key]){ alert("Ya existe ese usuario"); return; }
     if(editing==="__new__"&&!form.pass){ alert("Falta la contraseña"); return; }
@@ -499,7 +486,12 @@ function UsuariosPanel({roles,users,setUsers,c}){
           <div style={{...c.lbl,marginBottom:12}}>{editing==="__new__"?"Nuevo usuario":"Editar: "+editing}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
             <div><div style={c.lbl}>Usuario</div><input style={inp} value={form.user} disabled={editing!=="__new__"} onChange={e=>setForm({...form,user:e.target.value})} placeholder="ej: enc_sal"/></div>
-            <div><div style={c.lbl}>Contraseña {editing!=="__new__"&&<span style={{color:"#334155"}}>(vacío = no cambiar)</span>}</div><input style={inp} value={form.pass} onChange={e=>setForm({...form,pass:e.target.value})} placeholder="contraseña"/></div>
+            <div><div style={c.lbl}>Contraseña {editing!=="__new__"&&<span style={{color:"#334155"}}>(vacío = no cambiar)</span>}</div>
+              <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+                <input type={verP?"text":"password"} style={{...inp,paddingRight:34}} value={form.pass} onChange={e=>setForm({...form,pass:e.target.value})} placeholder="contraseña"/>
+                <button onClick={()=>setVerP(v=>!v)} type="button" style={{position:"absolute",right:6,background:"transparent",border:"none",cursor:"pointer",fontSize:15,padding:0,lineHeight:1}}>{verP?"🙈":"👁"}</button>
+              </div>
+            </div>
             <div><div style={c.lbl}>Nombre visible</div><input style={inp} value={form.label} onChange={e=>setForm({...form,label:e.target.value})} placeholder="ej: Encargado Salta"/></div>
             <div><div style={c.lbl}>Rol</div><select style={inp} value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>{Object.entries(roles).map(([r,cfg])=><option key={r} value={r}>{cfg.label}</option>)}</select></div>
           </div>
