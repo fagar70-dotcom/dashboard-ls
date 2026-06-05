@@ -14,7 +14,27 @@ const sign = v => v===null?"—":(v>=0?"+":"")+v.toFixed(1)+"%";
 const signColor = v => v===null?"#64748b":v>=0?"#4ade80":"#f87171";
 const parseNum = s => parseFloat((s||"0").replace(/\*+/g,"").replace(/\./g,"").replace(",",".").trim())||0;
 
-const today   = () => { const d=new Date(); d.setHours(d.getHours()-3); return d.toISOString().slice(0,10); };
+// Fecha y hora de Argentina, robusto ante cualquier zona horaria del navegador/servidor
+const today   = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires"}).format(new Date());
+const ahoraArg = () => {
+  const p = new Intl.DateTimeFormat("en-GB",{timeZone:"America/Argentina/Buenos_Aires",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+  const h=+p.find(x=>x.type==="hour").value, m=+p.find(x=>x.type==="minute").value;
+  return { min:h*60+m, str:`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}` };
+};
+
+// Mensaje motivacional según cumplimiento de meta y franja horaria (Argentina)
+// meta = referencia del año anterior (mismo día de la semana). cumplido = unidades de hoy.
+function metaMensaje(cumplido, meta){
+  if(!meta || meta<=0) return null;
+  const faltante = Math.max(0,(1 - cumplido/meta) * 100); // % que falta para llegar a la meta
+  const min = ahoraArg().min;
+  // 13:00–17:15 y falta 60% o menos
+  if(min>=780 && min<=1035 && faltante<=60) return "Vamos bien. Es totalmente posible lograr la meta diaria !!!";
+  // 18:00–19:00 y falta 70% o menos
+  if(min>=1080 && min<=1140 && faltante<=70) return "Así se hace !!! vamos por el 100%";
+  return null;
+}
+
 const addDays = (s,n)=>{ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
 const fmtDate = iso => { const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
 const dayName = iso => new Date(iso+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long"});
@@ -66,12 +86,20 @@ export default function App(){
   const [step,setStep]     = useState("");
   const [error,setError]   = useState("");
   const [data,setData]     = useState(null);
+  const [ultimaAct,setUltimaAct] = useState(null);
+  const [, setTick]        = useState(0);
   const [esMovil,setEsMovil] = useState(typeof window!=="undefined" && window.innerWidth<700);
 
   useEffect(()=>{
     const onResize=()=>setEsMovil(window.innerWidth<700);
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
+  },[]);
+
+  // Re-evalúa la hora cada minuto (para mostrar/ocultar los mensajes de meta a tiempo)
+  useEffect(()=>{
+    const t=setInterval(()=>setTick(x=>x+1), 60*1000);
+    return ()=>clearInterval(t);
   },[]);
 
   const isAdmin = auth?.role==="admin";
@@ -115,20 +143,20 @@ export default function App(){
         }
       }
       setData({ uHoy, uRef, montosHoy, montosRef, fechaRef, variaciones });
+      setUltimaAct(ahoraArg().str);
     } catch(e){ setError(e.message); }
     setLoading(false); setStep("");
   },[auth,fecha,vista]);
 
   useEffect(()=>{ if(auth) load(); },[auth,fecha,vista]);
+
+  // Auto-actualización cada 10 minutos
   useEffect(()=>{
-  if(!auth) return;
-  const interval = setInterval(()=>{ 
-    setFecha(today()); 
-    load(); 
-  }, 10 * 60 * 1000);
-  return ()=>clearInterval(interval);
-// eslint-disable-next-line
-},[auth]);
+    if(!auth) return;
+    const interval=setInterval(()=>{ setFecha(today()); load(); }, 10*60*1000);
+    return ()=>clearInterval(interval);
+    // eslint-disable-next-line
+  },[auth]);
 
   if(!auth) return (
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
@@ -174,12 +202,13 @@ export default function App(){
 
   return (
     <div style={c.page}>
+      <style>{`@keyframes metaBlink{0%,100%{box-shadow:0 0 0 0 rgba(250,204,21,0);border-color:#facc15}50%{box-shadow:0 0 14px 2px rgba(250,204,21,.55);border-color:#fde047}}`}</style>
       <div style={c.hdr}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>📊</span>
           <div>
             <div style={{fontSize:14,fontWeight:600}}>Dashboard ventas — La Sorpresa</div>
-            <div style={{fontSize:11,color:"#64748b"}}>{auth.label}{auth.sucursal?" · "+auth.sucursal:""} · {cap(dayName(fecha))} {fmtDate(fecha)}</div>
+            <div style={{fontSize:11,color:"#64748b"}}>{auth.label}{auth.sucursal?" · "+auth.sucursal:""} · {cap(dayName(fecha))} {fmtDate(fecha)}{ultimaAct && <span style={{color:"#facc15"}}> · Actualizado {ultimaAct}</span>}</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -255,12 +284,21 @@ function Diario({data,fecha,auth,c}){
   const totalGeneral = SUCURSALES.reduce((a,s)=>a+(hoy[s]||0),0);
   const totalGenRef = SUCURSALES.reduce((a,s)=>a+(ref[s]||0),0);
 
+  // Mensaje motivacional de meta (meta = referencia del año anterior)
+  const msgMeta = metaMensaje(totalHoy, totalRef);
+
   return (<>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
       <div style={{...c.card,background:"#16261c",borderColor:"#22c55e"}}><div style={{...c.lbl,color:"#4ade80"}}>{esEncargado?"Unidades hoy":"Total hoy"}</div><div style={{...c.big,color:"#4ade80"}}>{fmt(totalHoy)}</div><div style={c.sub}>{cap(dayName(fecha))} · {esEncargado?miSuc:"unidades"}</div></div>
       <div style={{...c.card,background:"#1e2536",borderColor:"#475569"}}><div style={{...c.lbl,color:"#94a3b8"}}>Ref. ant.</div><div style={{...c.big,color:"#94a3b8"}}>{fmt(totalRef)}</div><div style={c.sub}>{fmtDate(fechaRef)}</div></div>
       <div style={c.card}><div style={c.lbl}>Variación</div><div style={{...c.big,color:signColor(varTotal)}}>{sign(varTotal)}</div><div style={c.sub}>{(totalHoy-totalRef>=0?"+":"")+fmt(totalHoy-totalRef)} u</div></div>
       {!esEncargado && <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
+      {msgMeta && (
+        <div style={{...c.card,border:"2px solid #facc15",animation:"metaBlink 1.4s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:160}}>
+          <div style={{...c.lbl,color:"#facc15"}}>Meta del día</div>
+          <div style={{fontSize:15,fontWeight:700,color:"#fde047",lineHeight:1.3}}>{msgMeta}</div>
+        </div>
+      )}
     </div>
 
     <div style={c.card}>
