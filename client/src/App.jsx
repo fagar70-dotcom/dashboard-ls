@@ -120,6 +120,11 @@ export default function App(){
   },[auth,fecha,vista]);
 
   useEffect(()=>{ if(auth) load(); },[auth,fecha,vista]);
+  useEffect(()=>{
+  if(!auth) return;
+  const interval = setInterval(()=>{ load(); }, 10 * 60 * 1000);
+  return ()=>clearInterval(interval);
+},[auth, load]);
 
   if(!auth) return (
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif"}}>
