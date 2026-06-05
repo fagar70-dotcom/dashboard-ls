@@ -202,7 +202,7 @@ export default function App(){
 
   return (
     <div style={c.page}>
-      <style>{`@keyframes metaBlink{0%,100%{box-shadow:0 0 0 0 rgba(250,204,21,0);border-color:#facc15}50%{box-shadow:0 0 14px 2px rgba(250,204,21,.55);border-color:#fde047}}`}</style>
+      <style>{`@keyframes metaBlink{0%,100%{border-color:#facc15;box-shadow:0 0 18px 3px rgba(250,204,21,.75)}50%{border-color:#4a3f0c;box-shadow:0 0 0 0 rgba(250,204,21,0)}}`}</style>
       <div style={c.hdr}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>📊</span>
@@ -294,7 +294,7 @@ function Diario({data,fecha,auth,c}){
       <div style={c.card}><div style={c.lbl}>Variación</div><div style={{...c.big,color:signColor(varTotal)}}>{sign(varTotal)}</div><div style={c.sub}>{(totalHoy-totalRef>=0?"+":"")+fmt(totalHoy-totalRef)} u</div></div>
       {!esEncargado && <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
       {msgMeta && (
-        <div style={{...c.card,border:"2px solid #facc15",animation:"metaBlink 1.4s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:160}}>
+        <div style={{...c.card,border:"2px solid #facc15",animation:"metaBlink 1s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:160}}>
           <div style={{...c.lbl,color:"#facc15"}}>Meta del día</div>
           <div style={{fontSize:15,fontWeight:700,color:"#fde047",lineHeight:1.3}}>{msgMeta}</div>
         </div>
