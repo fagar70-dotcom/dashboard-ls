@@ -14,7 +14,7 @@ const sign = v => v===null?"—":(v>=0?"+":"")+v.toFixed(1)+"%";
 const signColor = v => v===null?"#64748b":v>=0?"#4ade80":"#f87171";
 const parseNum = s => parseFloat((s||"0").replace(/\*+/g,"").replace(/\./g,"").replace(",",".").trim())||0;
 
-const today   = () => new Date().toISOString().slice(0,10);
+const today   = () => { const d=new Date(); d.setHours(d.getHours()-3); return d.toISOString().slice(0,10); };
 const addDays = (s,n)=>{ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
 const fmtDate = iso => { const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
 const dayName = iso => new Date(iso+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long"});
