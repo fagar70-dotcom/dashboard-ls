@@ -28,8 +28,8 @@ function metaMensaje(cumplido, meta){
   if(!meta || meta<=0) return null;
   const faltante = Math.max(0,(1 - cumplido/meta) * 100); // % que falta para llegar a la meta
   const min = ahoraArg().min;
-  // 13:00–17:15 y falta 60% o menos
-  if(min>=780 && min<=1035 && faltante<=60) return "Vamos bien. Es totalmente posible lograr la meta diaria !!!";
+  // Hasta las 17:15 y falta 60% o menos (se activa al alcanzar el ritmo, típicamente cerca de las 13:15)
+  if(min<=1035 && faltante<=60) return "Vamos bien. Es totalmente posible lograr la meta diaria !!!";
   // 18:00–19:00 y falta 70% o menos
   if(min>=1080 && min<=1140 && faltante<=70) return "Así se hace !!! vamos por el 100%";
   return null;
