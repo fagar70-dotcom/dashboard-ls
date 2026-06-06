@@ -49,12 +49,12 @@ function metaMensaje(cumplido, meta, ctxKey){
   // PRIORIDAD (de mayor a menor)
   // 1) Meta alcanzada o superada → titileo rojo/azul
   if(cumplido >= meta) return { texto:"ESPECTACULAR . Llegamos a la meta: Gran trabajo en equipo !!", tipo:"goal" };
-  // 2) Último esfuerzo (≤10% activado antes de 20:30) → permanente hasta la meta
-  if(store[kUlt]!=null) return { texto:"Un último esfuerzo ....falta poco", tipo:"normal" };
-  // 3) Falta poco (≤20% antes de 20:00) → 20 min desde la activación
-  if(store[kPoco]!=null && min<=store[kPoco]+20) return { texto:"Falta poco. A no aflojar .....", tipo:"normal" };
-  // 4) Muy buen desempeño (≤60% antes de 12:00) → 30 min desde la activación
-  if(store[kBuen]!=null && min<=store[kBuen]+30) return { texto:"Muy buen desempeño!! Grandes chances de alcanzar la meta diaria", tipo:"normal" };
+  // 2) Último esfuerzo (≤10% activado entre 18:00 y 20:30) → permanente hasta la meta
+  if(store[kUlt]!=null && faltante<=10) return { texto:"Un último esfuerzo ....falta poco", tipo:"normal" };
+  // 3) Falta poco (≤20% entre 17:15 y 20:00) → 20 min desde la activación
+  if(store[kPoco]!=null && faltante<=20 && min<=store[kPoco]+20) return { texto:"Falta poco. A no aflojar .....", tipo:"normal" };
+  // 4) Muy buen desempeño (≤60% entre 08:30 y 12:00) → 30 min desde la activación
+  if(store[kBuen]!=null && faltante<=60 && min<=store[kBuen]+30) return { texto:"Muy buen desempeño!! Grandes chances de alcanzar la meta diaria", tipo:"normal" };
   // 5) Vamos bien (≤60% hasta 17:15)
   if(min<=1035 && faltante<=60) return { texto:"Vamos bien. Es totalmente posible lograr la meta diaria !!!", tipo:"normal" };
   // 6) Así se hace (18:00–19:00, ≤70%)
