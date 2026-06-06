@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser, removeUser, saveRole, fetchVariaciones } from "./api";
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
@@ -22,16 +22,45 @@ const ahoraArg = () => {
   return { min:h*60+m, str:`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}` };
 };
 
+// Almacén de activaciones (para mensajes con duración) — persiste en el navegador
+const META_STORE_KEY = "metaMsgStore";
+function getMetaStore(){ try{ return JSON.parse(localStorage.getItem(META_STORE_KEY)||"{}"); }catch{ return {}; } }
+function saveMetaStore(s){ try{ localStorage.setItem(META_STORE_KEY, JSON.stringify(s)); }catch{} }
+
 // Mensaje motivacional según cumplimiento de meta y franja horaria (Argentina)
 // meta = referencia del año anterior (mismo día de la semana). cumplido = unidades de hoy.
-function metaMensaje(cumplido, meta){
+// Devuelve { texto, tipo } — tipo "goal" = titileo rojo/azul; "normal" = titileo amarillo.
+function metaMensaje(cumplido, meta, ctxKey){
   if(!meta || meta<=0) return null;
   const faltante = Math.max(0,(1 - cumplido/meta) * 100); // % que falta para llegar a la meta
   const min = ahoraArg().min;
-  // Hasta las 17:15 y falta 60% o menos (se activa al alcanzar el ritmo, típicamente cerca de las 13:15)
-  if(min<=1035 && faltante<=60) return "Vamos bien. Es totalmente posible lograr la meta diaria !!!";
-  // 18:00–19:00 y falta 70% o menos
-  if(min>=1080 && min<=1140 && faltante<=70) return "Así se hace !!! vamos por el 100%";
+  const hoy = today();
+
+  // Registro de activaciones por contexto (sucursal o TOTAL) y día
+  let store = getMetaStore();
+  if(store.fecha !== hoy) store = { fecha: hoy };
+  const k = ctxKey || "TOTAL";
+  const kBuen = k+"_buen", kPoco = k+"_poco", kUlt = k+"_ult";
+  if(store[kBuen]==null && faltante<=60 && min<720)  store[kBuen]=min; // antes de 12:00
+  if(store[kPoco]==null && faltante<=20 && min<1200) store[kPoco]=min; // antes de 20:00
+  if(store[kUlt] ==null && faltante<=10 && min<1230) store[kUlt] =min; // antes de 20:30
+  saveMetaStore(store);
+
+  // PRIORIDAD (de mayor a menor)
+  // 1) Meta alcanzada o superada → titileo rojo/azul
+  if(cumplido >= meta) return { texto:"ESPECTACULAR . Llegamos a la meta: Gran trabajo en equipo !!", tipo:"goal" };
+  // 2) Último esfuerzo (≤10% activado antes de 20:30) → permanente hasta la meta
+  if(store[kUlt]!=null) return { texto:"Un último esfuerzo ....falta poco", tipo:"normal" };
+  // 3) Falta poco (≤20% antes de 20:00) → 20 min desde la activación
+  if(store[kPoco]!=null && min<=store[kPoco]+20) return { texto:"Falta poco. A no aflojar .....", tipo:"normal" };
+  // 4) Muy buen desempeño (≤60% antes de 12:00) → 30 min desde la activación
+  if(store[kBuen]!=null && min<=store[kBuen]+30) return { texto:"Muy buen desempeño!! Grandes chances de alcanzar la meta diaria", tipo:"normal" };
+  // 5) Vamos bien (≤60% hasta 17:15)
+  if(min<=1035 && faltante<=60) return { texto:"Vamos bien. Es totalmente posible lograr la meta diaria !!!", tipo:"normal" };
+  // 6) Así se hace (18:00–19:00, ≤70%)
+  if(min>=1080 && min<=1140 && faltante<=70) return { texto:"Así se hace !!! vamos por el 100%", tipo:"normal" };
+  // 7) Arranque del día (8:30–9:30)
+  if(min>=510 && min<=570) return { texto:"Arrancamos el día con todo. Vamos que podemos !", tipo:"normal" };
   return null;
 }
 
@@ -202,7 +231,7 @@ export default function App(){
 
   return (
     <div style={c.page}>
-      <style>{`@keyframes metaBlink{0%,100%{border-color:#facc15;box-shadow:0 0 18px 3px rgba(250,204,21,.75)}50%{border-color:#4a3f0c;box-shadow:0 0 0 0 rgba(250,204,21,0)}}`}</style>
+      <style>{`@keyframes metaBlink{0%,100%{border-color:#facc15;box-shadow:0 0 18px 3px rgba(250,204,21,.75)}50%{border-color:#4a3f0c;box-shadow:0 0 0 0 rgba(250,204,21,0)}}@keyframes metaGoal{0%,100%{border-color:#ef4444;box-shadow:0 0 26px 6px rgba(239,68,68,.85);color:#fca5a5}50%{border-color:#3b82f6;box-shadow:0 0 26px 6px rgba(59,130,246,.85);color:#93c5fd}}`}</style>
       <div style={c.hdr}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>📊</span>
@@ -269,6 +298,45 @@ export default function App(){
   );
 }
 
+function Confetti(){
+  const ref = useRef(null);
+  useEffect(()=>{
+    const canvas = ref.current; if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    const colors = ["#f87171","#facc15","#4ade80","#60a5fa","#c084fc","#fb923c","#f472b6","#22d3ee"];
+    const N = 150;
+    const spawn = (top)=>({
+      x: Math.random()*W,
+      y: top ? Math.random()*-H : Math.random()*H,
+      w: 6+Math.random()*8, h: 9+Math.random()*11,
+      color: colors[(Math.random()*colors.length)|0],
+      rot: Math.random()*Math.PI*2, vr: -0.12+Math.random()*0.24,
+      vy: 1.4+Math.random()*3, vx: -1+Math.random()*2, sway: Math.random()*Math.PI*2,
+    });
+    const pieces = Array.from({length:N}, ()=>spawn(false));
+    const onResize = ()=>{ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; };
+    window.addEventListener("resize", onResize);
+    let raf;
+    const frame = ()=>{
+      ctx.clearRect(0,0,W,H);
+      for(const p of pieces){
+        p.y += p.vy; p.sway += 0.03; p.x += p.vx + Math.sin(p.sway)*0.8; p.rot += p.vr;
+        if(p.y > H+20){ Object.assign(p, spawn(true)); }
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.color; ctx.globalAlpha = 0.9;
+        ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+        ctx.restore();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    frame();
+    return ()=>{ cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
+  },[]);
+  return <canvas ref={ref} style={{position:"fixed",inset:0,width:"100vw",height:"100vh",pointerEvents:"none",zIndex:40}}/>;
+}
+
 function Diario({data,fecha,auth,c}){
   const esEncargado = auth.role==="encargado";
   const miSuc = auth.sucursal;
@@ -285,19 +353,28 @@ function Diario({data,fecha,auth,c}){
   const totalGenRef = SUCURSALES.reduce((a,s)=>a+(ref[s]||0),0);
 
   // Mensaje motivacional de meta (meta = referencia del año anterior)
-  const msgMeta = metaMensaje(totalHoy, totalRef);
+  const ctxKey = esEncargado ? miSuc : "TOTAL";
+  const msgMeta = metaMensaje(totalHoy, totalRef, ctxKey);
 
   return (<>
+    {msgMeta?.tipo==="goal" && <Confetti/>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
       <div style={{...c.card,background:"#16261c",borderColor:"#22c55e"}}><div style={{...c.lbl,color:"#4ade80"}}>{esEncargado?"Unidades hoy":"Total hoy"}</div><div style={{...c.big,color:"#4ade80"}}>{fmt(totalHoy)}</div><div style={c.sub}>{cap(dayName(fecha))} · {esEncargado?miSuc:"unidades"}</div></div>
       <div style={{...c.card,background:"#1e2536",borderColor:"#475569"}}><div style={{...c.lbl,color:"#94a3b8"}}>Ref. ant.</div><div style={{...c.big,color:"#94a3b8"}}>{fmt(totalRef)}</div><div style={c.sub}>{fmtDate(fechaRef)}</div></div>
       <div style={c.card}><div style={c.lbl}>Variación</div><div style={{...c.big,color:signColor(varTotal)}}>{sign(varTotal)}</div><div style={c.sub}>{(totalHoy-totalRef>=0?"+":"")+fmt(totalHoy-totalRef)} u</div></div>
       {!esEncargado && <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
       {msgMeta && (
-        <div style={{...c.card,border:"2px solid #facc15",animation:"metaBlink 1s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:160}}>
-          <div style={{...c.lbl,color:"#facc15"}}>Meta del día</div>
-          <div style={{fontSize:15,fontWeight:700,color:"#fde047",lineHeight:1.3}}>{msgMeta}</div>
-        </div>
+        msgMeta.tipo==="goal" ? (
+          <div style={{...c.card,gridColumn:"1 / -1",border:"3px solid #ef4444",animation:"metaGoal 0.8s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center",padding:"18px"}}>
+            <div style={{fontSize:11,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6,color:"inherit",opacity:.9}}>🎉 Meta alcanzada</div>
+            <div style={{fontSize:19,fontWeight:800,color:"inherit",lineHeight:1.25}}>{msgMeta.texto}</div>
+          </div>
+        ) : (
+          <div style={{...c.card,border:"2px solid #facc15",animation:"metaBlink 1s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:160}}>
+            <div style={{...c.lbl,color:"#facc15"}}>Meta del día</div>
+            <div style={{fontSize:15,fontWeight:700,color:"#fde047",lineHeight:1.3}}>{msgMeta.texto}</div>
+          </div>
+        )
       )}
     </div>
 
