@@ -41,9 +41,9 @@ function metaMensaje(cumplido, meta, ctxKey){
   if(store.fecha !== hoy) store = { fecha: hoy };
   const k = ctxKey || "TOTAL";
   const kBuen = k+"_buen", kPoco = k+"_poco", kUlt = k+"_ult";
-  if(store[kBuen]==null && faltante<=60 && min<720)  store[kBuen]=min; // antes de 12:00
-  if(store[kPoco]==null && faltante<=20 && min<1200) store[kPoco]=min; // antes de 20:00
-  if(store[kUlt] ==null && faltante<=10 && min<1230) store[kUlt] =min; // antes de 20:30
+  if(store[kBuen]==null && faltante<=60 && min>=510 && min<720)  store[kBuen]=min; // 08:30–12:00
+  if(store[kPoco]==null && faltante<=20 && min>=1035 && min<1200) store[kPoco]=min; // 17:15–20:00
+  if(store[kUlt] ==null && faltante<=10 && min>=1080 && min<1230) store[kUlt] =min; // 18:00–20:30
   saveMetaStore(store);
 
   // PRIORIDAD (de mayor a menor)
