@@ -381,12 +381,12 @@ function ClimaResumen({ciudad,fecha,c}){
 
   const nombreCiudad = CIUDAD_LABEL[ciudad] || ciudad;
   const tituloClima = `Clima ${fmtDate(fecha)} · ${nombreCiudad}`;
-  if(est==="cargando") return <div style={c.card}><div style={c.lbl}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
-  if(est==="error"||!cl) return <div style={c.card}><div style={c.lbl}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
+  if(est==="cargando") return <div style={c.card}><div style={{...c.lbl,color:"#94a3b8"}}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
+  if(est==="error"||!cl) return <div style={c.card}><div style={{...c.lbl,color:"#94a3b8"}}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
   const info = wmoInfo(cl.code);
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:4}}>{tituloClima}</div>
+      <div style={{...c.lbl,color:"#94a3b8",marginBottom:4}}>{tituloClima}</div>
       <div style={{display:"flex",alignItems:"center",gap:5}}>
         <span style={{fontSize:30,lineHeight:1}}>{info.icon}</span>
         <span style={{fontSize:30,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</span>
