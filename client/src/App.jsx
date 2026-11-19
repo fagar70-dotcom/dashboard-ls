@@ -581,8 +581,9 @@ function Clima({data,c}){
   },[fechaRef]);
 
   return (<>
-    <div style={{...c.card,marginBottom:12}}>
-      <div style={c.lbl}>Clima del día de referencia — {cap(dayName(fechaRef))} {fmtDate(fechaRef)} (año anterior)</div>
+    <div style={{...c.card,marginBottom:12,background:"#1e2536",borderColor:"#475569",display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+      <div style={{...c.lbl,color:"#94a3b8"}}>Día de referencia (año anterior)</div>
+      <div style={{fontSize:24,fontWeight:800,color:"#f1f5f9"}}>{cap(dayName(fechaRef))} {fmtDate(fechaRef)}</div>
     </div>
     {cargando && <div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando clima…</div>}
     {err && <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12}}>{err}</div>}
