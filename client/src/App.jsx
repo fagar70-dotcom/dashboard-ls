@@ -380,7 +380,7 @@ function ClimaResumen({ciudad,fecha,c}){
   },[ciudad,fecha]);
 
   const nombreCiudad = CIUDAD_LABEL[ciudad] || ciudad;
-  const tituloClima = `Clima ${fmtDate(fecha)} · ${nombreCiudad}`;
+  const tituloClima = (<><div>Clima {fmtDate(fecha)}</div><div>{nombreCiudad}</div></>);
   if(est==="cargando") return <div style={c.card}><div style={{...c.lbl,color:"#94a3b8"}}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
   if(est==="error"||!cl) return <div style={c.card}><div style={{...c.lbl,color:"#94a3b8"}}>{tituloClima}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
   const info = wmoInfo(cl.code);
