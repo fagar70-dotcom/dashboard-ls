@@ -385,10 +385,10 @@ function ClimaResumen({ciudad,fecha,c}){
   const info = wmoInfo(cl.code);
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:6}}>Clima (día) {nombreCiudad}</div>
-      <div style={{display:"flex",alignItems:"center",gap:6}}>
-        <span style={{fontSize:22,lineHeight:1.1}}>{info.icon}</span>
-        <span style={{fontSize:24,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</span>
+      <div style={{...c.lbl,marginBottom:4}}>Clima (día) {nombreCiudad}</div>
+      <div style={{display:"flex",alignItems:"center",gap:5}}>
+        <span style={{fontSize:30,lineHeight:1}}>{info.icon}</span>
+        <span style={{fontSize:30,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</span>
       </div>
       <div style={c.sub}>{info.label}{cl.precip>0?` · ${cl.precip.toFixed(1)}mm`:""}</div>
     </div>
