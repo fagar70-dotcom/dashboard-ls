@@ -487,7 +487,10 @@ function Metricas({data,fecha,auth,c}){
   const titulo={fontSize:16,fontWeight:700,color:"#f1f5f9",marginBottom:14,paddingBottom:8,borderBottom:"2px solid #3b82f6"};
 
   return (<>
-    <div style={{...c.card,marginBottom:12}}><div style={c.lbl}>Métricas por local — {fmtDate(fecha)} vs {fmtDate(fechaRef)}</div></div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
+      <div style={{...c.card,background:"#16261c",borderColor:"#22c55e"}}><div style={{...c.lbl,color:"#4ade80"}}>Hoy</div><div style={{...c.big,fontSize:20,color:"#4ade80"}}>{cap(dayName(fecha))}</div><div style={c.sub}>{fmtDate(fecha)}</div></div>
+      <div style={{...c.card,background:"#1e2536",borderColor:"#475569"}}><div style={{...c.lbl,color:"#94a3b8"}}>Ref. ant.</div><div style={{...c.big,fontSize:20,color:"#94a3b8"}}>{cap(dayName(fechaRef))}</div><div style={c.sub}>{fmtDate(fechaRef)}</div></div>
+    </div>
 
     <div style={{...c.card,marginBottom:12}}>
       <div style={titulo}>📦 Unidades por ticket</div>
@@ -502,7 +505,7 @@ function Metricas({data,fecha,auth,c}){
               <td style={{padding:"9px 8px"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[f.suc]}}/><span style={{fontWeight:500}}>{f.suc}</span></span></td>
               <td style={{padding:"9px 8px",textAlign:"right",fontWeight:600,fontSize:14}}>{fmtU(f.uxtH)}</td>
               <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{fmtU(f.uxtR)}</td>
-              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700}}>{sign(v)}</td>
+              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700,fontSize:19}}>{sign(v)}</td>
             </tr>
           );})}
         </tbody>
@@ -524,7 +527,7 @@ function Metricas({data,fecha,auth,c}){
               <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(f.tkH)}</td>
               <td style={{padding:"9px 8px",textAlign:"right",fontWeight:600,fontSize:14}}>{fmtPesos(f.vptH)}</td>
               <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{fmtPesos(f.vptR)}</td>
-              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700}}>{sign(v)}</td>
+              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700,fontSize:19}}>{sign(v)}</td>
             </tr>
           );})}
         </tbody>
