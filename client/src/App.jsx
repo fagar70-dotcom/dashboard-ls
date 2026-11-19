@@ -3,7 +3,23 @@ import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser,
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
 const SUC_COLORS = { "24SET":"#4ade80","MENDO":"#60a5fa","MUÑE":"#facc15","SAL":"#f87171" };
-const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"} };
+const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"} };
+const CIUDADES = {
+  "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
+  "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
+};
+function wmoInfo(code){
+  if(code===0) return {icon:"☀️",label:"Despejado"};
+  if(code===1||code===2) return {icon:"🌤️",label:"Parcialmente nublado"};
+  if(code===3) return {icon:"☁️",label:"Nublado"};
+  if(code===45||code===48) return {icon:"🌫️",label:"Niebla"};
+  if(code>=51&&code<=57) return {icon:"🌦️",label:"Llovizna"};
+  if(code>=61&&code<=67) return {icon:"🌧️",label:"Lluvia"};
+  if(code>=71&&code<=77) return {icon:"🌨️",label:"Nieve"};
+  if(code>=80&&code<=82) return {icon:"🌧️",label:"Chubascos"};
+  if(code>=95) return {icon:"⛈️",label:"Tormenta"};
+  return {icon:"🌡️",label:"Sin datos"};
+}
 const RATIO_TICKET = { "24SET":1.0018, "MENDO":1.0068, "MUÑE":1.0130, "SAL":1.0060 };
 
 const fmt  = n => Math.round(n||0).toLocaleString("es-AR");
@@ -227,7 +243,7 @@ export default function App(){
   };
 
   const tabs=[];
-  ["diario","montos","metricas"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
+  ["diario","montos","metricas","clima"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
   if(isAdmin) tabs.push("usuarios");
 
   return (
@@ -273,6 +289,7 @@ export default function App(){
           {data&&!loading&&vista==="diario"   && <Diario data={data} fecha={fecha} auth={auth} c={c}/>}
           {data&&!loading&&vista==="montos"    && misVistas.includes("montos")   && <Montos data={data} fecha={fecha} auth={auth} c={c}/>}
           {data&&!loading&&vista==="metricas"  && misVistas.includes("metricas") && <Metricas data={data} fecha={fecha} auth={auth} c={c}/>}
+          {data&&!loading&&vista==="clima"     && misVistas.includes("clima")    && <Clima data={data} c={c}/>}
           {vista==="usuarios" && isAdmin && roles && <AdminPanel roles={roles} setRoles={setRoles} c={c}/>}
         </div>
 
@@ -536,6 +553,67 @@ function Metricas({data,fecha,auth,c}){
   </>);
 }
 
+function Clima({data,c}){
+  const fechaRef = data.fechaRef;
+  const [clima,setClima] = useState(null);
+  const [cargando,setCargando] = useState(true);
+  const [err,setErr] = useState("");
+
+  useEffect(()=>{
+    let activo=true;
+    setCargando(true); setErr(""); setClima(null);
+    Promise.all(Object.entries(CIUDADES).map(([nombre,cfg])=>
+      fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${cfg.lat}&longitude=${cfg.lon}&start_date=${fechaRef}&end_date=${fechaRef}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`)
+        .then(r=>r.json())
+        .then(j=>({nombre,d:j?.daily}))
+    )).then(res=>{
+      if(!activo) return;
+      const out={};
+      res.forEach(({nombre,d})=>{
+        out[nombre] = (d && d.temperature_2m_max) ? {
+          tmax: d.temperature_2m_max[0], tmin: d.temperature_2m_min[0],
+          precip: d.precipitation_sum[0], code: d.weathercode[0],
+        } : null;
+      });
+      setClima(out); setCargando(false);
+    }).catch(()=>{ if(activo){ setErr("No se pudo obtener el clima (open-meteo.com)"); setCargando(false); } });
+    return ()=>{ activo=false; };
+  },[fechaRef]);
+
+  return (<>
+    <div style={{...c.card,marginBottom:12}}>
+      <div style={c.lbl}>Clima del día de referencia — {cap(dayName(fechaRef))} {fmtDate(fechaRef)} (año anterior)</div>
+    </div>
+    {cargando && <div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando clima…</div>}
+    {err && <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12}}>{err}</div>}
+    {!cargando && !err && clima && (
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+        {Object.entries(CIUDADES).map(([nombre,cfg])=>{
+          const cl = clima[nombre];
+          const info = cl ? wmoInfo(cl.code) : {icon:"—",label:"Sin datos"};
+          return (
+            <div key={nombre} style={c.card}>
+              <div style={{...c.lbl,marginBottom:4}}>{nombre}</div>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>{cfg.sucs.join(" · ")}</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <span style={{fontSize:36,lineHeight:1}}>{info.icon}</span>
+                <div>
+                  <div style={{fontSize:15,fontWeight:600,color:"#f1f5f9"}}>{info.label}</div>
+                  <div style={{fontSize:12,color:"#64748b"}}>{cl?.precip>0 ? `Lluvia: ${cl.precip.toFixed(1)} mm` : "Sin lluvia"}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:20}}>
+                <div><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase"}}>Máx.</div><div style={{fontSize:22,fontWeight:700,color:"#f87171"}}>{cl?.tmax!=null?Math.round(cl.tmax)+"°":"—"}</div></div>
+                <div><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase"}}>Mín.</div><div style={{fontSize:22,fontWeight:700,color:"#60a5fa"}}>{cl?.tmin!=null?Math.round(cl.tmin)+"°":"—"}</div></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </>);
+}
+
 function AdminPanel({roles,setRoles,c}){
   const [sub,setSub]=useState("usuarios");
   const [users,setUsers]=useState(null);
@@ -580,7 +658,7 @@ function RolesPanel({roles,setRoles,c}){
           <div style={{marginBottom:12,opacity:cfg.fijo?0.5:1,pointerEvents:cfg.fijo?"none":"auto"}}>
             <div style={c.lbl}>Vistas permitidas</div>
             <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-              {["diario","montos","metricas"].map(v=>(
+              {["diario","montos","metricas","clima"].map(v=>(
                 <label key={v} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer",color:"#cbd5e1"}}>
                   <input type="checkbox" checked={cfg.vistas.includes(v)} onChange={()=>toggle(rol,"vista",v)} disabled={cfg.fijo}/>
                   {VISTAS_INFO[v].icon} {VISTAS_INFO[v].label}
