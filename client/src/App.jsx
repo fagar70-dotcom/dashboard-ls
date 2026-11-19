@@ -8,6 +8,7 @@ const CIUDADES = {
   "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
   "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
 };
+const CIUDAD_LABEL = { "Tucumán":"SM de Tucumán", "Salta":"Salta Capital" };
 function ciudadDeSucursal(suc){
   return Object.entries(CIUDADES).find(([,cfg])=>cfg.sucs.includes(suc))?.[0];
 }
@@ -378,19 +379,18 @@ function ClimaResumen({ciudad,fecha,c}){
     return ()=>{ activo=false; };
   },[ciudad,fecha]);
 
-  if(est==="cargando") return <div style={c.card}><div style={c.lbl}>Clima (ref.)</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
-  if(est==="error"||!cl) return <div style={c.card}><div style={c.lbl}>Clima (ref.)</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
+  const nombreCiudad = CIUDAD_LABEL[ciudad] || ciudad;
+  if(est==="cargando") return <div style={c.card}><div style={c.lbl}>Clima (día) {nombreCiudad}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
+  if(est==="error"||!cl) return <div style={c.card}><div style={c.lbl}>Clima (día) {nombreCiudad}</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
   const info = wmoInfo(cl.code);
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:4}}>Clima (ref.) · {ciudad}</div>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontSize:28,lineHeight:1}}>{info.icon}</span>
-        <div>
-          <div style={{fontSize:14,fontWeight:700,color:"#f1f5f9"}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</div>
-          <div style={{fontSize:11,color:"#64748b"}}>{info.label}{cl.precip>0?` · ${cl.precip.toFixed(1)}mm`:""}</div>
-        </div>
+      <div style={{...c.lbl,marginBottom:6}}>Clima (día) {nombreCiudad}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <span style={{fontSize:22,lineHeight:1.1}}>{info.icon}</span>
+        <span style={{fontSize:24,fontWeight:700,color:"#f1f5f9",lineHeight:1.1}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</span>
       </div>
+      <div style={c.sub}>{info.label}{cl.precip>0?` · ${cl.precip.toFixed(1)}mm`:""}</div>
     </div>
   );
 }
