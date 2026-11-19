@@ -166,10 +166,11 @@ export default function App(){
       if(vista==="montos"||vista==="metricas"){
         setStep("Cargando montos…");
         const sucs = auth.role==="encargado" ? [auth.sucursal] : SUCURSALES;
-        for(const s of sucs){
-          montosHoy[s] = await getMontosSuc(fecha,s);
-          montosRef[s] = await getMontosSuc(fechaRef,s);
-        }
+        const [hoyArr, refArr] = await Promise.all([
+          Promise.all(sucs.map(s=>getMontosSuc(fecha,s))),
+          Promise.all(sucs.map(s=>getMontosSuc(fechaRef,s))),
+        ]);
+        sucs.forEach((s,i)=>{ montosHoy[s]=hoyArr[i]; montosRef[s]=refArr[i]; });
       }
       setData({ uHoy, uRef, montosHoy, montosRef, fechaRef, variaciones });
       setUltimaAct(ahoraArg().str);
