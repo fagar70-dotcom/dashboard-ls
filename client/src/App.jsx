@@ -597,63 +597,16 @@ function Metricas({data,fecha,auth,c}){
 
 function Clima({data,c}){
   const fechaRef = data.fechaRef;
-  const [clima,setClima] = useState(null);
-  const [cargando,setCargando] = useState(true);
-  const [err,setErr] = useState("");
-
-  useEffect(()=>{
-    let activo=true;
-    setCargando(true); setErr(""); setClima(null);
-    Promise.all(Object.entries(CIUDADES).map(([nombre,cfg])=>
-      fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${cfg.lat}&longitude=${cfg.lon}&start_date=${fechaRef}&end_date=${fechaRef}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`)
-        .then(r=>r.json())
-        .then(j=>({nombre,d:j?.daily}))
-    )).then(res=>{
-      if(!activo) return;
-      const out={};
-      res.forEach(({nombre,d})=>{
-        out[nombre] = (d && d.temperature_2m_max) ? {
-          tmax: d.temperature_2m_max[0], tmin: d.temperature_2m_min[0],
-          precip: d.precipitation_sum[0], code: d.weathercode[0],
-        } : null;
-      });
-      setClima(out); setCargando(false);
-    }).catch(()=>{ if(activo){ setErr("No se pudo obtener el clima (open-meteo.com)"); setCargando(false); } });
-    return ()=>{ activo=false; };
-  },[fechaRef]);
-
   return (<>
     <div style={{...c.card,marginBottom:12,background:"#1e2536",borderColor:"#475569",display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
       <div style={{...c.lbl,color:"#94a3b8"}}>Día de referencia (año anterior)</div>
       <div style={{fontSize:24,fontWeight:800,color:"#f1f5f9"}}>{cap(dayName(fechaRef))} {fmtDate(fechaRef)}</div>
     </div>
-    {cargando && <div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando clima…</div>}
-    {err && <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12}}>{err}</div>}
-    {!cargando && !err && clima && (
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
-        {Object.entries(CIUDADES).map(([nombre,cfg])=>{
-          const cl = clima[nombre];
-          const info = cl ? wmoInfo(cl.code) : {icon:"—",label:"Sin datos"};
-          return (
-            <div key={nombre} style={c.card}>
-              <div style={{...c.lbl,marginBottom:4}}>{nombre}</div>
-              <div style={{fontSize:11,color:"#64748b",marginBottom:10}}>{cfg.sucs.join(" · ")}</div>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                <span style={{fontSize:36,lineHeight:1}}>{info.icon}</span>
-                <div>
-                  <div style={{fontSize:15,fontWeight:600,color:"#f1f5f9"}}>{info.label}</div>
-                  <div style={{fontSize:12,color:"#64748b"}}>{cl?.precip>0 ? `Lluvia: ${cl.precip.toFixed(1)} mm` : "Sin lluvia"}</div>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:20}}>
-                <div><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase"}}>Máx.</div><div style={{fontSize:22,fontWeight:700,color:"#f87171"}}>{cl?.tmax!=null?Math.round(cl.tmax)+"°":"—"}</div></div>
-                <div><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase"}}>Mín.</div><div style={{fontSize:22,fontWeight:700,color:"#60a5fa"}}>{cl?.tmin!=null?Math.round(cl.tmin)+"°":"—"}</div></div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    )}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10}}>
+      {Object.keys(CIUDADES).map(nombre=>(
+        <ClimaResumen key={nombre} ciudad={nombre} fecha={fechaRef} c={c}/>
+      ))}
+    </div>
   </>);
 }
 
