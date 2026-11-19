@@ -8,6 +8,9 @@ const CIUDADES = {
   "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
   "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
 };
+function ciudadDeSucursal(suc){
+  return Object.entries(CIUDADES).find(([,cfg])=>cfg.sucs.includes(suc))?.[0];
+}
 function wmoInfo(code){
   if(code===0) return {icon:"☀️",label:"Despejado"};
   if(code===1||code===2) return {icon:"🌤️",label:"Parcialmente nublado"};
@@ -355,6 +358,43 @@ function Confetti(){
   return <canvas ref={ref} style={{position:"fixed",inset:0,width:"100vw",height:"100vh",pointerEvents:"none",zIndex:40}}/>;
 }
 
+function ClimaResumen({ciudad,fecha,c}){
+  const cfg = CIUDADES[ciudad];
+  const [cl,setCl] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setCl(null);
+    if(!cfg){ setEst("error"); return; }
+    fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${cfg.lat}&longitude=${cfg.lon}&start_date=${fecha}&end_date=${fecha}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`)
+      .then(r=>r.json()).then(j=>{
+        if(!activo) return;
+        const d=j?.daily;
+        if(d && d.temperature_2m_max){
+          setCl({tmax:d.temperature_2m_max[0],tmin:d.temperature_2m_min[0],precip:d.precipitation_sum[0],code:d.weathercode[0]});
+          setEst("ok");
+        } else setEst("error");
+      }).catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[ciudad,fecha]);
+
+  if(est==="cargando") return <div style={c.card}><div style={c.lbl}>Clima (ref.)</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Cargando…</div></div>;
+  if(est==="error"||!cl) return <div style={c.card}><div style={c.lbl}>Clima (ref.)</div><div style={{fontSize:12,color:"#64748b",marginTop:8}}>Sin datos</div></div>;
+  const info = wmoInfo(cl.code);
+  return (
+    <div style={c.card}>
+      <div style={{...c.lbl,marginBottom:4}}>Clima (ref.) · {ciudad}</div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:28,lineHeight:1}}>{info.icon}</span>
+        <div>
+          <div style={{fontSize:14,fontWeight:700,color:"#f1f5f9"}}>{Math.round(cl.tmax)}° / {Math.round(cl.tmin)}°</div>
+          <div style={{fontSize:11,color:"#64748b"}}>{info.label}{cl.precip>0?` · ${cl.precip.toFixed(1)}mm`:""}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Diario({data,fecha,auth,c}){
   const esEncargado = auth.role==="encargado";
   const miSuc = auth.sucursal;
@@ -381,6 +421,7 @@ function Diario({data,fecha,auth,c}){
       <div style={{...c.card,background:"#1e2536",borderColor:"#475569"}}><div style={{...c.lbl,color:"#94a3b8"}}>Ref. ant.</div><div style={{...c.big,color:"#94a3b8"}}>{fmt(totalRef)}</div><div style={c.sub}>{fmtDate(fechaRef)}</div></div>
       <div style={c.card}><div style={c.lbl}>Variación</div><div style={{...c.big,color:signColor(varTotal)}}>{sign(varTotal)}</div><div style={c.sub}>{(totalHoy-totalRef>=0?"+":"")+fmt(totalHoy-totalRef)} u</div></div>
       {!esEncargado && <div style={c.card}><div style={c.lbl}>Mejor local</div><div style={{...c.big,fontSize:22,color:SUC_COLORS[mejor]}}>{mejor}</div><div style={c.sub}>{fmt(hoy[mejor])} u</div></div>}
+      {esEncargado && <ClimaResumen ciudad={ciudadDeSucursal(miSuc)} fecha={fechaRef} c={c}/>}
       {msgMeta && (
         msgMeta.tipo==="goal" ? (
           <div style={{...c.card,gridColumn:"1 / -1",border:"3px solid #ef4444",animation:"metaGoal 0.8s ease-in-out infinite",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center",padding:"18px"}}>

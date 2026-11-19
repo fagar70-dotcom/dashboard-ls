@@ -6,7 +6,7 @@
     "fijo": true
   },
   "encargado": {
-    "vistas": ["diario", "clima"],
+    "vistas": ["diario"],
     "verMontos": false,
     "label": "Encargado"
   }
