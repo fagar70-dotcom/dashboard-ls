@@ -452,7 +452,7 @@ function Montos({data,fecha,auth,c}){
                 <td style={{padding:"9px 8px",textAlign:"right",fontWeight:600,fontSize:14}}>{fmtM(h)}</td>
                 <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{fmtM(a)}</td>
                 <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v)}}>{h-a>=0?"+":""}{fmtM(h-a)}</td>
-                <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700}}>{sign(v)}</td>
+                <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700,fontSize:19}}>{sign(v)}</td>
               </tr>
             );
           })}
@@ -461,7 +461,7 @@ function Montos({data,fecha,auth,c}){
             <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,color:"#facc15",fontSize:14}}>{fmtM(totalHoy)}</td>
             <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{fmtM(totalRef)}</td>
             <td style={{padding:"9px 8px",textAlign:"right",color:signColor(varTotal)}}>{totalHoy-totalRef>=0?"+":""}{fmtM(totalHoy-totalRef)}</td>
-            <td style={{padding:"9px 8px",textAlign:"right",color:signColor(varTotal),fontWeight:700}}>{sign(varTotal)}</td>
+            <td style={{padding:"9px 8px",textAlign:"right",color:signColor(varTotal),fontWeight:700,fontSize:19}}>{sign(varTotal)}</td>
           </tr>
         </tbody>
       </table>
