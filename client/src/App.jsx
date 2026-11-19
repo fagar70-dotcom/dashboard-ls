@@ -397,7 +397,7 @@ function Diario({data,fecha,auth,c}){
                 <td style={{padding:"9px 8px",textAlign:"right",fontWeight:600,fontSize:14,color:oculto?"#475569":"#f1f5f9"}}>{oculto?G:fmt(h)}</td>
                 <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{oculto?G:fmt(a)}</td>
                 <td style={{padding:"9px 8px",textAlign:"right",color:oculto?"#475569":signColor(v)}}>{oculto?G:((h-a>=0?"+":"")+fmt(h-a))}</td>
-                <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700,fontSize:16}}>{sign(v)}</td>
+                <td style={{padding:"9px 8px",textAlign:"right",color:signColor(v),fontWeight:700,fontSize:19}}>{sign(v)}</td>
               </tr>
             );
           })}
@@ -407,7 +407,7 @@ function Diario({data,fecha,auth,c}){
               <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,color:"#facc15",fontSize:14}}>{fmt(totalGeneral)}</td>
               <td style={{padding:"9px 8px",textAlign:"right",color:"#64748b"}}>{fmt(totalGenRef)}</td>
               <td style={{padding:"9px 8px",textAlign:"right",color:signColor(pct(totalGeneral,totalGenRef))}}>{totalGeneral-totalGenRef>=0?"+":""}{fmt(totalGeneral-totalGenRef)}</td>
-              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(pct(totalGeneral,totalGenRef)),fontWeight:700,fontSize:16}}>{sign(pct(totalGeneral,totalGenRef))}</td>
+              <td style={{padding:"9px 8px",textAlign:"right",color:signColor(pct(totalGeneral,totalGenRef)),fontWeight:700,fontSize:19}}>{sign(pct(totalGeneral,totalGenRef))}</td>
             </tr>
           )}
         </tbody>
