@@ -130,10 +130,12 @@ app.post("/api/ventas", auth, async (req, res) => {
   try {
     let { action, fecha_desde, fecha_fin, sucursales } = req.body;
     if (req.session.role === "encargado") {
-      sucursales = req.session.sucursal;
       const rol = ROLES[req.session.role] || {};
       if (action === "montos_por_tipo" && !rol.verMontos)
         return res.status(403).json({ ok: false, error: "Sin permiso para montos" });
+      // detalle_ventas (solo vendedor/cantidad/articulo, sin montos) se deja pasar sin
+      // forzar la sucursal: lo usa la pestania Ranking para el Top 10 global entre locales.
+      if (action !== "detalle_ventas") sucursales = req.session.sucursal;
     }
     const data = await callOsweb("ventas_ls", {
       action,
