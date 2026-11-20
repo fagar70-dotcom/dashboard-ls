@@ -516,8 +516,10 @@ function RankingTabla({titulo,filas,incluirLocal,c}){
       <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
       {filas.length>0 && (
-        <div style={{maxHeight:420,overflowY:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+        // overflowX propio: así si la tabla no entra en pantalla (celular), se desliza
+        // SOLO ella adentro de la tarjeta, y no se mueve toda la página para el costado.
+        <div style={{maxHeight:420,overflowY:"auto",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+          <table style={{width:"100%",minWidth:560,borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{color:"#94a3b8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
@@ -666,8 +668,10 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
       <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
       {filas.length>0 && (
-        <div style={{maxHeight:420,overflowY:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+        // overflowX propio: así si la tabla no entra en pantalla (celular), se desliza
+        // SOLO ella adentro de la tarjeta, y no se mueve toda la página para el costado.
+        <div style={{maxHeight:420,overflowY:"auto",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+          <table style={{width:"100%",minWidth:560,borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{color:"#94a3b8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
