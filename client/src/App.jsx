@@ -619,6 +619,13 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
   const [tip,setTip] = useState(null);
   const hideTimer = useRef(null);
   useEffect(()=>()=>{ if(hideTimer.current) clearTimeout(hideTimer.current); },[]);
+  // Permite cerrar el desplegable con la tecla Escape.
+  useEffect(()=>{
+    if(!tip) return;
+    const onKey = e=>{ if(e.key==="Escape") setTip(null); };
+    window.addEventListener("keydown", onKey);
+    return ()=>window.removeEventListener("keydown", onKey);
+  },[tip]);
 
   function cancelarOcultar(){ if(hideTimer.current){ clearTimeout(hideTimer.current); hideTimer.current=null; } }
   // Espera un instante antes de ocultar, para dar tiempo a mover el mouse desde el
