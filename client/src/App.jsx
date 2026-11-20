@@ -1000,7 +1000,7 @@ function RolesPanel({roles,setRoles,c}){
           <div style={{marginBottom:12,opacity:cfg.fijo?0.5:1,pointerEvents:cfg.fijo?"none":"auto"}}>
             <div style={c.lbl}>Vistas permitidas</div>
             <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-              {["diario","montos","metricas","clima","ranking","vendedores"].map(v=>(
+              {["diario","montos","metricas","clima","vendedores"].map(v=>(
                 <label key={v} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer",color:"#cbd5e1"}}>
                   <input type="checkbox" checked={cfg.vistas.includes(v)} onChange={()=>toggle(rol,"vista",v)} disabled={cfg.fijo}/>
                   {VISTAS_INFO[v].icon} {VISTAS_INFO[v].label}
