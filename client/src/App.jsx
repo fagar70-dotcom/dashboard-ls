@@ -576,7 +576,7 @@ function Ranking({fecha,auth,c}){
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
 // Tooltip flotante (position:fixed) con el detalle de artículos de la categoría señalada.
-function TipDetalle({tip,onEnter,onLeave}){
+function TipDetalle({tip}){
   const ref = useRef(null);
   const [pos,setPos] = useState(null);
   useLayoutEffect(()=>{
@@ -598,10 +598,8 @@ function TipDetalle({tip,onEnter,onLeave}){
   if(!tip) return null;
   const left = pos ? pos.left : tip.x;
   const top  = pos ? pos.top  : tip.y;
-  // pointerEvents activos + onMouseEnter/Leave propios: así se puede mover el mouse
-  // desde el valor hasta la lista y scrollearla, sin que se cierre en el camino.
   return (
-    <div ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave} style={{position:"fixed",left,top,zIndex:1000,
+    <div ref={ref} style={{position:"fixed",left,top,zIndex:1000,
       background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 10px",
       minWidth:200,maxWidth:300,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
       <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:6,letterSpacing:"0.05em"}}>{tip.titulo}</div>
@@ -617,8 +615,17 @@ function TipDetalle({tip,onEnter,onLeave}){
 
 function PuntosTabla({titulo,filas,incluirLocal,c}){
   const [tip,setTip] = useState(null);
-  const hideTimer = useRef(null);
-  useEffect(()=>()=>{ if(hideTimer.current) clearTimeout(hideTimer.current); },[]);
+  const containerRef = useRef(null);
+
+  // Cierra el desplegable al hacer click fuera de esta tarjeta (tabla + tooltip).
+  useEffect(()=>{
+    if(!tip) return;
+    const onDocClick = e=>{
+      if(containerRef.current && !containerRef.current.contains(e.target)) setTip(null);
+    };
+    document.addEventListener("click", onDocClick);
+    return ()=>document.removeEventListener("click", onDocClick);
+  },[tip]);
   // Permite cerrar el desplegable con la tecla Escape.
   useEffect(()=>{
     if(!tip) return;
@@ -627,23 +634,20 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
     return ()=>window.removeEventListener("keydown", onKey);
   },[tip]);
 
-  function cancelarOcultar(){ if(hideTimer.current){ clearTimeout(hideTimer.current); hideTimer.current=null; } }
-  // Espera un instante antes de ocultar, para dar tiempo a mover el mouse desde el
-  // valor hasta la lista desplegable (y poder scrollearla) sin que se cierre en el camino.
-  function ocultar(){ cancelarOcultar(); hideTimer.current = setTimeout(()=>setTip(null), 200); }
-
-  function mostrarDetalle(e, titulo, detalle){
-    cancelarOcultar();
+  function toggleDetalle(e, key, titulo, detalle){
+    e.stopPropagation();
+    if(tip?.key===key){ setTip(null); return; }
     if(!detalle || !detalle.length){ setTip(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
-    setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
+    setTip({ key, x, y: rect.bottom+4, anchorTop: rect.top, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
   }
-  function mostrarResumen(e, v){
-    cancelarOcultar();
+  function toggleResumen(e, key, v){
+    e.stopPropagation();
+    if(tip?.key===key){ setTip(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
-    setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo:"Total puntos — composición", items:[
+    setTip({ key, x, y: rect.bottom+4, anchorTop: rect.top, titulo:"Total puntos — composición", items:[
       {label:"Gral", value:`${fmt(v.gral)} pts`},
       {label:"Acc", value:`${fmt(v.acc)} pts`},
       {label:"Marcas", value:`${fmt(v.marcas)} pts`},
@@ -651,10 +655,10 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
       {label:"Total", value:`${fmt(v.total)} pts`},
     ]});
   }
-  const celda = (valor,color,fontWeight,fontSize)=>({padding:"9px 8px",textAlign:"right",color,fontWeight,fontSize,cursor:"help"});
+  const celda = (valor,color,fontWeight,fontSize)=>({padding:"9px 8px",textAlign:"right",color,fontWeight,fontSize,cursor:"pointer"});
 
   return (
-    <div style={c.card}>
+    <div ref={containerRef} style={{...c.card,position:"relative"}}>
       <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
       {filas.length>0 && (
@@ -670,24 +674,24 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
               <td style={{padding:"7px 8px",textAlign:"right"}}>Val. 18"</td>
               <td style={{padding:"7px 8px",textAlign:"right"}}>Total</td>
             </tr></thead>
-            <tbody onMouseLeave={ocultar}>
+            <tbody>
               {filas.map((v,i)=>(
                 <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
                   <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
                   <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
                   {incluirLocal && <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>}
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral)} onMouseLeave={ocultar}>{fmt(v.gral)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc)} onMouseLeave={ocultar}>{fmt(v.acc)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — MARCAS`,v.detalle?.marcas)} onMouseLeave={ocultar}>{fmt(v.marcas)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18)} onMouseLeave={ocultar}>{fmt(v.valijas18)}</td>
-                  <td style={celda(null,"#facc15",700,16)} onMouseEnter={e=>mostrarResumen(e,v)} onMouseLeave={ocultar}>{fmt(v.total)}</td>
+                  <td style={celda(null,"#94a3b8")} onClick={e=>toggleDetalle(e,`${v.vendedor}|gral`,`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral)}>{fmt(v.gral)}</td>
+                  <td style={celda(null,"#94a3b8")} onClick={e=>toggleDetalle(e,`${v.vendedor}|acc`,`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc)}>{fmt(v.acc)}</td>
+                  <td style={celda(null,"#94a3b8")} onClick={e=>toggleDetalle(e,`${v.vendedor}|marcas`,`${v.vendedor} — MARCAS`,v.detalle?.marcas)}>{fmt(v.marcas)}</td>
+                  <td style={celda(null,"#94a3b8")} onClick={e=>toggleDetalle(e,`${v.vendedor}|val18`,`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18)}>{fmt(v.valijas18)}</td>
+                  <td style={celda(null,"#facc15",700,16)} onClick={e=>toggleResumen(e,`${v.vendedor}|total`,v)}>{fmt(v.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      <TipDetalle tip={tip} onEnter={cancelarOcultar} onLeave={ocultar}/>
+      <TipDetalle tip={tip}/>
     </div>
   );
 }
