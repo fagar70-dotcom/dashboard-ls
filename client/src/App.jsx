@@ -576,7 +576,7 @@ function Ranking({fecha,auth,c}){
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
 // Tooltip flotante (position:fixed) con el detalle de artículos de la categoría señalada.
-function TipDetalle({tip}){
+function TipDetalle({tip,onClose}){
   const ref = useRef(null);
   const [pos,setPos] = useState(null);
   useLayoutEffect(()=>{
@@ -602,7 +602,11 @@ function TipDetalle({tip}){
     <div ref={ref} style={{position:"fixed",left,top,zIndex:1000,
       background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 10px",
       minWidth:200,maxWidth:300,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
-      <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:6,letterSpacing:"0.05em"}}>{tip.titulo}</div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:6}}>
+        <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.05em"}}>{tip.titulo}</div>
+        {/* En celular no hay tecla ESC: este botón permite cerrar el desplegable tocándolo. */}
+        <button onClick={onClose} style={{background:"transparent",border:"none",color:"#64748b",fontSize:15,lineHeight:1,padding:"0 2px",cursor:"pointer",flexShrink:0}}>✕</button>
+      </div>
       {tip.items.map((it,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12,padding:"3px 0",borderTop:i>0?"1px solid #1e293b":"none"}}>
           <span style={{color:"#cbd5e1"}}>{it.label}</span>
@@ -691,7 +695,7 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
           </table>
         </div>
       )}
-      <TipDetalle tip={tip}/>
+      <TipDetalle tip={tip} onClose={()=>setTip(null)}/>
     </div>
   );
 }
