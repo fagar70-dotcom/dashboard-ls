@@ -3,7 +3,7 @@ import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser,
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
 const SUC_COLORS = { "24SET":"#4ade80","MENDO":"#60a5fa","MUÑE":"#facc15","SAL":"#f87171" };
-const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"} };
+const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"}, ranking:{icon:"🏆",label:"Ranking"} };
 const CIUDADES = {
   "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
   "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
@@ -120,8 +120,8 @@ async function getMontosSuc(fecha, suc){
   const raw = res?.texto || res?.raw || (typeof res==="string"?res:"");
   return parseMontos(raw);
 }
-async function getTopVendedores(fecha){
-  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:"" });
+async function getRankingVendedores(fecha, sucursal){
+  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
   const filas = res?.detalle_ventas?.filas || res?.filas || [];
   const porVendedor = {};       // vendedor -> unidades totales
   const porVendedorSuc = {};    // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
@@ -143,8 +143,10 @@ async function getTopVendedores(fecha){
   };
   return Object.entries(porVendedor)
     .map(([vendedor,unidades])=>({vendedor,unidades,sucursal:sucursalDe(vendedor)}))
-    .sort((a,b)=>b.unidades-a.unidades)
-    .slice(0,5);
+    .sort((a,b)=>b.unidades-a.unidades);
+}
+async function getTopVendedores(fecha){
+  return (await getRankingVendedores(fecha,"")).slice(0,5);
 }
 
 export default function App(){
@@ -273,7 +275,7 @@ export default function App(){
   };
 
   const tabs=[];
-  ["diario","montos","metricas","clima"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
+  ["diario","montos","metricas","clima","ranking"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
   if(isAdmin) tabs.push("usuarios");
 
   return (
@@ -320,6 +322,7 @@ export default function App(){
           {data&&!loading&&vista==="montos"    && misVistas.includes("montos")   && <Montos data={data} fecha={fecha} auth={auth} c={c}/>}
           {data&&!loading&&vista==="metricas"  && misVistas.includes("metricas") && <Metricas data={data} fecha={fecha} auth={auth} c={c}/>}
           {data&&!loading&&vista==="clima"     && misVistas.includes("clima")    && <Clima data={data} c={c}/>}
+          {data&&!loading&&vista==="ranking"   && misVistas.includes("ranking")  && <Ranking fecha={fecha} auth={auth} c={c}/>}
           {vista==="usuarios" && isAdmin && roles && <AdminPanel roles={roles} setRoles={setRoles} c={c}/>}
         </div>
 
@@ -461,6 +464,79 @@ function TopVendedores({fecha,c}){
       )}
     </div>
   );
+}
+
+// Tabla genérica de ranking de vendedores por unidades. Si incluirLocal=true muestra
+// columna "Local" (para el ranking global, que mezcla vendedores de distintas sucursales).
+function RankingTabla({titulo,fuente,incluirLocal,c}){
+  const [filas,setFilas] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setFilas(null);
+    fuente().then(r=>{ if(activo){ setFilas(r); setEst("ok"); } })
+      .catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[fuente]);
+
+  return (
+    <div style={c.card}>
+      <div style={{...c.lbl,marginBottom:10}}>{titulo}</div>
+      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
+      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
+      {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
+      {est==="ok" && filas && filas.length>0 && (
+        <div style={{maxHeight:420,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+              <td style={{padding:"7px 8px"}}>#</td>
+              <td style={{padding:"7px 8px"}}>Vendedor</td>
+              {incluirLocal && <td style={{padding:"7px 8px"}}>Local</td>}
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Unidades</td>
+            </tr></thead>
+            <tbody>
+              {filas.map((v,i)=>(
+                <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
+                  <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
+                  <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
+                  {incluirLocal && <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>}
+                  <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#4ade80"}}>{fmt(v.unidades)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Ranking({fecha,auth,c}){
+  const esEncargado = auth.role === "encargado";
+  const miSuc = auth.sucursal;
+  const fuenteTop10 = useCallback(()=>getRankingVendedores(fecha,"").then(r=>r.slice(0,10)),[fecha]);
+
+  return (
+    <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <div style={{flex:"1 1 320px",minWidth:280,display:"flex",flexDirection:"column",gap:12}}>
+        {esEncargado ? (
+          <RankingLocalTabla fecha={fecha} sucursal={miSuc} c={c}/>
+        ) : (
+          SUCURSALES.map(s=>(
+            <RankingLocalTabla key={s} fecha={fecha} sucursal={s} c={c}/>
+          ))
+        )}
+      </div>
+      <div style={{flex:"1 1 320px",minWidth:280}}>
+        <RankingTabla titulo="Top 10 vendedores — todas las sucursales" fuente={fuenteTop10} incluirLocal={true} c={c}/>
+      </div>
+    </div>
+  );
+}
+// Wrapper para poder usar useCallback con una key distinta por sucursal (admin ve las 4, encargado solo la suya).
+function RankingLocalTabla({fecha,sucursal,c}){
+  const fuente = useCallback(()=>getRankingVendedores(fecha,sucursal),[fecha,sucursal]);
+  return <RankingTabla titulo={`Ranking vendedores — ${sucursal}`} fuente={fuente} incluirLocal={false} c={c}/>;
 }
 
 function Diario({data,fecha,auth,c}){
@@ -723,7 +799,7 @@ function RolesPanel({roles,setRoles,c}){
           <div style={{marginBottom:12,opacity:cfg.fijo?0.5:1,pointerEvents:cfg.fijo?"none":"auto"}}>
             <div style={c.lbl}>Vistas permitidas</div>
             <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-              {["diario","montos","metricas","clima"].map(v=>(
+              {["diario","montos","metricas","clima","ranking"].map(v=>(
                 <label key={v} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer",color:"#cbd5e1"}}>
                   <input type="checkbox" checked={cfg.vistas.includes(v)} onChange={()=>toggle(rol,"vista",v)} disabled={cfg.fijo}/>
                   {VISTAS_INFO[v].icon} {VISTAS_INFO[v].label}

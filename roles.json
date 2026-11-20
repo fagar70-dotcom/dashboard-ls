@@ -1,12 +1,12 @@
 {
   "admin": {
-    "vistas": ["diario", "montos", "metricas", "clima"],
+    "vistas": ["diario", "montos", "metricas", "clima", "ranking"],
     "verMontos": true,
     "label": "Administrador",
     "fijo": true
   },
   "encargado": {
-    "vistas": ["diario"],
+    "vistas": ["diario", "ranking"],
     "verMontos": false,
     "label": "Encargado"
   }

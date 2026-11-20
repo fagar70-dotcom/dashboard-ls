@@ -16,7 +16,7 @@ const USERS_FILE = path.join(__dirname, "users.json");
 const ROLES_FILE = path.join(__dirname, "roles.json");
 
 const SUCURSALES = ["24SET", "MENDO", "MUÑE", "SAL"];
-const VISTAS_VALIDAS = ["diario", "montos", "metricas", "clima"];
+const VISTAS_VALIDAS = ["diario", "montos", "metricas", "clima", "ranking"];
 
 function loadRoles() {
   try { return JSON.parse(fs.readFileSync(ROLES_FILE, "utf8")); }
