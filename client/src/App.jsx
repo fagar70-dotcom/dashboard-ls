@@ -513,7 +513,7 @@ function ClimaResumen({ciudad,fecha,c}){
 function RankingTabla({titulo,filas,incluirLocal,c}){
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
+      <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
       {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
@@ -655,7 +655,7 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
 
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
+      <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
       {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
