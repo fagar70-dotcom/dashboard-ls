@@ -156,18 +156,29 @@ function puntosDeLinea(f){
   const fam2 = (f.familia2||"").toString().trim().toUpperCase();
   const fam7 = (f.familia7||"").toString().trim().toUpperCase();
   const art  = (f.articulo||"").toString().trim().toUpperCase();
+  const esAcc      = fam2.includes("BILLETERA MUJER") || fam1.includes("ACCESORIO VIAJE");
+  const esMarca    = MARCAS_BASE.includes(fam7) || (MARCAS_VALIJA.includes(fam7) && fam1==="VALIJA");
+  const esValijas18= fam1.includes("VALIJA") && art.includes("18");
   const gral = cant*1;
-  const acc  = (fam2.includes("BILLETERA MUJER") || fam1.includes("ACCESORIO VIAJE")) ? cant*2 : 0;
-  const esMarca = MARCAS_BASE.includes(fam7) || (MARCAS_VALIJA.includes(fam7) && fam1==="VALIJA");
+  const acc  = esAcc ? cant*2 : 0;
   const marcas = esMarca ? cant*3 : 0;
-  const valijas18 = (fam1.includes("VALIJA") && art.includes("18")) ? cant*3 : 0;
-  return { gral, acc, marcas, valijas18, total: gral+acc+marcas+valijas18 };
+  const valijas18 = esValijas18 ? cant*3 : 0;
+  return { gral, acc, marcas, valijas18, total: gral+acc+marcas+valijas18, esAcc, esMarca, esValijas18 };
+}
+// Agrupa líneas crudas {articulo,cantidad} por artículo, sumando cantidad, para el detalle on-hover.
+function agregarPorArticulo(lineas){
+  const m = {};
+  lineas.forEach(l=>{ const k = l.articulo || "(sin descripción)"; m[k] = (m[k]||0) + l.cantidad; });
+  return Object.entries(m)
+    .map(([articulo,cantidad])=>({articulo,cantidad}))
+    .sort((a,b)=>b.cantidad-a.cantidad);
 }
 async function getPuntosVendedores(fecha, sucursal){
   const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
   const filas = res?.detalle_ventas?.filas || res?.filas || [];
   const porVendedor = {};
-  const porVendedorSuc = {}; // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
+  const porVendedorSuc = {};    // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
+  const porVendedorLineas = {}; // vendedor -> { gral:[], acc:[], marcas:[], valijas18:[] } líneas crudas
   filas.forEach(f=>{
     const v = (f.vendedor||"").toString().trim();
     if(!v) return;
@@ -178,10 +189,19 @@ async function getPuntosVendedores(fecha, sucursal){
     porVendedor[v].marcas    += p.marcas;
     porVendedor[v].valijas18 += p.valijas18;
     porVendedor[v].total     += p.total;
+
+    const art = (f.articulo||"").toString().trim();
+    const cant = Number(f.cantidad)||0;
+    if(!porVendedorLineas[v]) porVendedorLineas[v] = {gral:[],acc:[],marcas:[],valijas18:[]};
+    porVendedorLineas[v].gral.push({articulo:art,cantidad:cant});
+    if(p.esAcc)       porVendedorLineas[v].acc.push({articulo:art,cantidad:cant});
+    if(p.esMarca)     porVendedorLineas[v].marcas.push({articulo:art,cantidad:cant});
+    if(p.esValijas18) porVendedorLineas[v].valijas18.push({articulo:art,cantidad:cant});
+
     const suc = (f.sucursal||"").toString().trim();
     if(suc){
       porVendedorSuc[v] = porVendedorSuc[v] || {};
-      porVendedorSuc[v][suc] = (porVendedorSuc[v][suc]||0) + (Number(f.cantidad)||0);
+      porVendedorSuc[v][suc] = (porVendedorSuc[v][suc]||0) + cant;
     }
   });
   const sucursalDe = (v)=>{
@@ -190,7 +210,18 @@ async function getPuntosVendedores(fecha, sucursal){
     return Object.entries(m).sort((a,b)=>b[1]-a[1])[0][0]; // local donde más vendió ese día
   };
   return Object.entries(porVendedor)
-    .map(([vendedor,p])=>({vendedor,...p,sucursal:sucursalDe(vendedor)}))
+    .map(([vendedor,p])=>{
+      const l = porVendedorLineas[vendedor] || {gral:[],acc:[],marcas:[],valijas18:[]};
+      return {
+        vendedor, ...p, sucursal:sucursalDe(vendedor),
+        detalle: {
+          gral: agregarPorArticulo(l.gral),
+          acc: agregarPorArticulo(l.acc),
+          marcas: agregarPorArticulo(l.marcas),
+          valijas18: agregarPorArticulo(l.valijas18),
+        },
+      };
+    })
     .sort((a,b)=>b.total-a.total);
 }
 
@@ -545,9 +576,28 @@ function RankingLocalTabla({fecha,sucursal,c}){
 }
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
+// Tooltip flotante (position:fixed) con el detalle de artículos de la categoría señalada.
+function TipDetalle({tip}){
+  if(!tip) return null;
+  return (
+    <div style={{position:"fixed",left:tip.x,top:tip.y,zIndex:1000,pointerEvents:"none",
+      background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 10px",
+      minWidth:200,maxWidth:300,boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
+      <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:6,letterSpacing:"0.05em"}}>{tip.titulo}</div>
+      {tip.items.map((it,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12,padding:"3px 0",borderTop:i>0?"1px solid #1e293b":"none"}}>
+          <span style={{color:"#cbd5e1"}}>{it.label}</span>
+          <span style={{color:"#94a3b8",whiteSpace:"nowrap",marginLeft:8}}>{it.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PuntosTabla({titulo,fuente,incluirLocal,c}){
   const [filas,setFilas] = useState(null);
   const [est,setEst] = useState("cargando");
+  const [tip,setTip] = useState(null);
   useEffect(()=>{
     let activo=true;
     setEst("cargando"); setFilas(null);
@@ -555,6 +605,26 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
       .catch(()=>{ if(activo) setEst("error"); });
     return ()=>{ activo=false; };
   },[fuente]);
+
+  function mostrarDetalle(e, titulo, detalle){
+    if(!detalle || !detalle.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
+    setTip({ x, y: rect.bottom+4, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
+  }
+  function mostrarResumen(e, v){
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
+    setTip({ x, y: rect.bottom+4, titulo:"Total puntos — composición", items:[
+      {label:"Gral", value:`${fmt(v.gral)} pts`},
+      {label:"Acc", value:`${fmt(v.acc)} pts`},
+      {label:"Marcas", value:`${fmt(v.marcas)} pts`},
+      {label:'Valijas 18"', value:`${fmt(v.valijas18)} pts`},
+      {label:"Total", value:`${fmt(v.total)} pts`},
+    ]});
+  }
+  const ocultar = ()=>setTip(null);
+  const celda = (valor,color,fontWeight,fontSize)=>({padding:"9px 8px",textAlign:"right",color,fontWeight,fontSize,cursor:"help"});
 
   return (
     <div style={c.card}>
@@ -575,23 +645,24 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
               <td style={{padding:"7px 8px",textAlign:"right"}}>Val. 18"</td>
               <td style={{padding:"7px 8px",textAlign:"right"}}>Total</td>
             </tr></thead>
-            <tbody>
+            <tbody onMouseLeave={ocultar}>
               {filas.map((v,i)=>(
                 <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
                   <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
                   <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
                   {incluirLocal && <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>}
-                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.gral)}</td>
-                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.acc)}</td>
-                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.marcas)}</td>
-                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.valijas18)}</td>
-                  <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#facc15"}}>{fmt(v.total)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral)}>{fmt(v.gral)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc)}>{fmt(v.acc)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — MARCAS`,v.detalle?.marcas)}>{fmt(v.marcas)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18)}>{fmt(v.valijas18)}</td>
+                  <td style={celda(null,"#facc15",700,16)} onMouseEnter={e=>mostrarResumen(e,v)}>{fmt(v.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <TipDetalle tip={tip}/>
     </div>
   );
 }
