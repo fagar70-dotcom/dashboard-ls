@@ -607,7 +607,7 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
   },[fuente]);
 
   function mostrarDetalle(e, titulo, detalle){
-    if(!detalle || !detalle.length) return;
+    if(!detalle || !detalle.length){ setTip(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
     setTip({ x, y: rect.bottom+4, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
