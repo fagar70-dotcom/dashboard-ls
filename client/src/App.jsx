@@ -120,6 +120,21 @@ async function getMontosSuc(fecha, suc){
   const raw = res?.texto || res?.raw || (typeof res==="string"?res:"");
   return parseMontos(raw);
 }
+async function getTopVendedores(fecha){
+  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:"" });
+  const filas = res?.detalle_ventas?.filas || res?.filas || [];
+  const porVendedor = {};
+  filas.forEach(f=>{
+    const v = (f.vendedor||"").toString().trim();
+    if(!v) return;
+    const cant = Number(f.cantidad)||0;
+    porVendedor[v] = (porVendedor[v]||0) + cant;
+  });
+  return Object.entries(porVendedor)
+    .map(([vendedor,unidades])=>({vendedor,unidades}))
+    .sort((a,b)=>b.unidades-a.unidades)
+    .slice(0,5);
+}
 
 export default function App(){
   const [roles,setRoles]   = useState(null);
@@ -396,6 +411,45 @@ function ClimaResumen({ciudad,fecha,c}){
   );
 }
 
+function TopVendedores({fecha,c}){
+  const [top,setTop] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setTop(null);
+    getTopVendedores(fecha).then(r=>{ if(activo){ setTop(r); setEst("ok"); } })
+      .catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[fecha]);
+
+  return (
+    <div style={{...c.card,marginTop:12}}>
+      <div style={{...c.lbl,marginBottom:10}}>Top 5 vendedores — unidades de hoy</div>
+      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
+      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
+      {est==="ok" && top && top.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
+      {est==="ok" && top && top.length>0 && (
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+            <td style={{padding:"7px 8px"}}>#</td>
+            <td style={{padding:"7px 8px"}}>Vendedor</td>
+            <td style={{padding:"7px 8px",textAlign:"right"}}>Unidades</td>
+          </tr></thead>
+          <tbody>
+            {top.map((v,i)=>(
+              <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
+                <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
+                <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
+                <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#4ade80"}}>{fmt(v.unidades)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function Diario({data,fecha,auth,c}){
   const esEncargado = auth.role==="encargado";
   const miSuc = auth.sucursal;
@@ -473,6 +527,8 @@ function Diario({data,fecha,auth,c}){
         </tbody>
       </table>
     </div>
+
+    <TopVendedores fecha={fecha} c={c}/>
   </>);
 }
 
