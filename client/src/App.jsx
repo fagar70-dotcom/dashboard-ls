@@ -577,7 +577,7 @@ function RankingLocalTabla({fecha,sucursal,c}){
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
 // Tooltip flotante (position:fixed) con el detalle de artículos de la categoría señalada.
-function TipDetalle({tip}){
+function TipDetalle({tip,onEnter,onLeave}){
   const ref = useRef(null);
   const [pos,setPos] = useState(null);
   useLayoutEffect(()=>{
@@ -599,8 +599,10 @@ function TipDetalle({tip}){
   if(!tip) return null;
   const left = pos ? pos.left : tip.x;
   const top  = pos ? pos.top  : tip.y;
+  // pointerEvents activos + onMouseEnter/Leave propios: así se puede mover el mouse
+  // desde el valor hasta la lista y scrollearla, sin que se cierre en el camino.
   return (
-    <div ref={ref} style={{position:"fixed",left,top,zIndex:1000,pointerEvents:"none",
+    <div ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave} style={{position:"fixed",left,top,zIndex:1000,
       background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 10px",
       minWidth:200,maxWidth:300,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
       <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:6,letterSpacing:"0.05em"}}>{tip.titulo}</div>
@@ -618,6 +620,7 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
   const [filas,setFilas] = useState(null);
   const [est,setEst] = useState("cargando");
   const [tip,setTip] = useState(null);
+  const hideTimer = useRef(null);
   useEffect(()=>{
     let activo=true;
     setEst("cargando"); setFilas(null);
@@ -625,14 +628,22 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
       .catch(()=>{ if(activo) setEst("error"); });
     return ()=>{ activo=false; };
   },[fuente]);
+  useEffect(()=>()=>{ if(hideTimer.current) clearTimeout(hideTimer.current); },[]);
+
+  function cancelarOcultar(){ if(hideTimer.current){ clearTimeout(hideTimer.current); hideTimer.current=null; } }
+  // Espera un instante antes de ocultar, para dar tiempo a mover el mouse desde el
+  // valor hasta la lista desplegable (y poder scrollearla) sin que se cierre en el camino.
+  function ocultar(){ cancelarOcultar(); hideTimer.current = setTimeout(()=>setTip(null), 200); }
 
   function mostrarDetalle(e, titulo, detalle){
+    cancelarOcultar();
     if(!detalle || !detalle.length){ setTip(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
     setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
   }
   function mostrarResumen(e, v){
+    cancelarOcultar();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
     setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo:"Total puntos — composición", items:[
@@ -643,7 +654,6 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
       {label:"Total", value:`${fmt(v.total)} pts`},
     ]});
   }
-  const ocultar = ()=>setTip(null);
   const celda = (valor,color,fontWeight,fontSize)=>({padding:"9px 8px",textAlign:"right",color,fontWeight,fontSize,cursor:"help"});
 
   return (
@@ -682,7 +692,7 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
           </table>
         </div>
       )}
-      <TipDetalle tip={tip}/>
+      <TipDetalle tip={tip} onEnter={cancelarOcultar} onLeave={ocultar}/>
     </div>
   );
 }
