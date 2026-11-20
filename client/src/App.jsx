@@ -622,6 +622,8 @@ function TipDetalle({tip,onClose}){
 function PuntosTabla({titulo,filas,incluirLocal,c}){
   const [tip,setTip] = useState(null);
   const containerRef = useRef(null);
+  const [movil,setMovil] = useState(typeof window!=="undefined" && window.innerWidth<700);
+  useEffect(()=>{ const f=()=>setMovil(window.innerWidth<700); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
 
   // Cierra el desplegable al hacer click fuera de esta tarjeta (tabla + tooltip).
   useEffect(()=>{
@@ -667,11 +669,44 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
     <div ref={containerRef} style={{...c.card,position:"relative"}}>
       <div style={{...c.lbl,marginBottom:10,paddingBottom:8,borderBottom:"1px solid #334155",color:"#ffffff",fontSize:15,fontWeight:800,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
-      {filas.length>0 && (
-        // overflowX propio: así si la tabla no entra en pantalla (celular), se desliza
-        // SOLO ella adentro de la tarjeta, y no se mueve toda la página para el costado.
-        <div style={{maxHeight:420,overflowY:"auto",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-          <table style={{width:"100%",minWidth:560,borderCollapse:"collapse",fontSize:13}}>
+
+      {filas.length>0 && movil && (
+        // En celular no entra una tabla de 7-8 columnas: una tarjeta por vendedor,
+        // apilada verticalmente, sin scroll horizontal.
+        <div style={{maxHeight:460,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
+          {filas.map((v,i)=>{
+            const stat = (lbl,key,titDet,det,valor,destacado)=>(
+              <div key={key} onClick={e=>key==="total"?toggleResumen(e,`${v.vendedor}|total`,v):toggleDetalle(e,`${v.vendedor}|${key}`,titDet,det)}
+                style={{flex:"1 1 60px",minWidth:60,background:"#0f172a",borderRadius:6,padding:"6px 4px",textAlign:"center",cursor:"pointer"}}>
+                <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase"}}>{lbl}</div>
+                <div style={{fontSize:destacado?17:14,fontWeight:destacado?700:600,color:destacado?"#facc15":"#f1f5f9"}}>{fmt(valor)}</div>
+              </div>
+            );
+            return (
+              <div key={v.vendedor} style={{background:"#1e2536",border:"1px solid #334155",borderRadius:8,padding:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
+                  <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                    <span style={{color:"#64748b",fontSize:13,flexShrink:0}}>{i+1}</span>
+                    <span style={{fontWeight:i===0?700:500,color:"#f1f5f9",fontSize:14}}>{v.vendedor}</span>
+                  </div>
+                  {incluirLocal && (v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:5,flexShrink:0}}><span style={{width:7,height:7,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8",fontSize:11}}>{v.sucursal}</span></span> : <span style={{color:"#475569",fontSize:11}}>—</span>)}
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {stat("Gral","gral",`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral,v.gral,false)}
+                  {stat("Acc","acc",`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc,v.acc,false)}
+                  {stat("Marcas","marcas",`${v.vendedor} — MARCAS`,v.detalle?.marcas,v.marcas,false)}
+                  {stat('Val.18"',"val18",`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18,v.valijas18,false)}
+                  {stat("Total","total",null,null,v.total,true)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {filas.length>0 && !movil && (
+        <div style={{maxHeight:420,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{color:"#94a3b8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
