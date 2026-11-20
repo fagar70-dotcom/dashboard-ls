@@ -145,9 +145,6 @@ async function getRankingVendedores(fecha, sucursal){
     .map(([vendedor,unidades])=>({vendedor,unidades,sucursal:sucursalDe(vendedor)}))
     .sort((a,b)=>b.unidades-a.unidades);
 }
-async function getTopVendedores(fecha){
-  return (await getRankingVendedores(fecha,"")).slice(0,5);
-}
 
 export default function App(){
   const [roles,setRoles]   = useState(null);
@@ -425,47 +422,6 @@ function ClimaResumen({ciudad,fecha,c}){
   );
 }
 
-function TopVendedores({fecha,c}){
-  const [top,setTop] = useState(null);
-  const [est,setEst] = useState("cargando");
-  useEffect(()=>{
-    let activo=true;
-    setEst("cargando"); setTop(null);
-    getTopVendedores(fecha).then(r=>{ if(activo){ setTop(r); setEst("ok"); } })
-      .catch(()=>{ if(activo) setEst("error"); });
-    return ()=>{ activo=false; };
-  },[fecha]);
-
-  return (
-    <div style={{...c.card,marginTop:12}}>
-      <div style={{...c.lbl,marginBottom:10}}>Top 5 vendedores — unidades de hoy</div>
-      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
-      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
-      {est==="ok" && top && top.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
-      {est==="ok" && top && top.length>0 && (
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-          <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
-            <td style={{padding:"7px 8px"}}>#</td>
-            <td style={{padding:"7px 8px"}}>Vendedor</td>
-            <td style={{padding:"7px 8px"}}>Local</td>
-            <td style={{padding:"7px 8px",textAlign:"right"}}>Unidades</td>
-          </tr></thead>
-          <tbody>
-            {top.map((v,i)=>(
-              <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
-                <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
-                <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
-                <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>
-                <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#4ade80"}}>{fmt(v.unidades)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
 // Tabla genérica de ranking de vendedores por unidades. Si incluirLocal=true muestra
 // columna "Local" (para el ranking global, que mezcla vendedores de distintas sucursales).
 function RankingTabla({titulo,fuente,incluirLocal,c}){
@@ -616,8 +572,6 @@ function Diario({data,fecha,auth,c}){
         </tbody>
       </table>
     </div>
-
-    <TopVendedores fecha={fecha} c={c}/>
   </>);
 }
 
