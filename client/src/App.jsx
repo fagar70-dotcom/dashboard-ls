@@ -3,7 +3,7 @@ import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser,
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
 const SUC_COLORS = { "24SET":"#4ade80","MENDO":"#60a5fa","MUÑE":"#facc15","SAL":"#f87171" };
-const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"}, ranking:{icon:"🏆",label:"Ranking"} };
+const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"}, ranking:{icon:"🏆",label:"Ranking"}, vendedores:{icon:"🎯",label:"Vendedores"} };
 const CIUDADES = {
   "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
   "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
@@ -146,6 +146,43 @@ async function getRankingVendedores(fecha, sucursal){
     .sort((a,b)=>b.unidades-a.unidades);
 }
 
+// Puntos por línea de venta, según la fórmula del skill ranking-vendedores.
+// Los extras (ACC/MARCAS/VALIJAS18) se suman aparte del GRAL; una línea puede sumar en varias categorías.
+const MARCAS_BASE   = ["SAMSONITE","PRIMICIA","AMERICAN TOURISTER","XTREME"];
+const MARCAS_VALIJA = ["REEBOK","LAS OREIRO"];
+function puntosDeLinea(f){
+  const cant = Number(f.cantidad)||0;
+  const fam1 = (f.familia1||"").toString().trim().toUpperCase();
+  const fam2 = (f.familia2||"").toString().trim().toUpperCase();
+  const fam7 = (f.familia7||"").toString().trim().toUpperCase();
+  const art  = (f.articulo||"").toString().trim().toUpperCase();
+  const gral = cant*1;
+  const acc  = (fam2.includes("BILLETERA MUJER") || fam1.includes("ACCESORIO VIAJE")) ? cant*2 : 0;
+  const esMarca = MARCAS_BASE.includes(fam7) || (MARCAS_VALIJA.includes(fam7) && fam1==="VALIJA");
+  const marcas = esMarca ? cant*3 : 0;
+  const valijas18 = (fam1.includes("VALIJA") && art.includes("18")) ? cant*3 : 0;
+  return { gral, acc, marcas, valijas18, total: gral+acc+marcas+valijas18 };
+}
+async function getPuntosVendedores(fecha, sucursal){
+  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
+  const filas = res?.detalle_ventas?.filas || res?.filas || [];
+  const porVendedor = {};
+  filas.forEach(f=>{
+    const v = (f.vendedor||"").toString().trim();
+    if(!v) return;
+    const p = puntosDeLinea(f);
+    if(!porVendedor[v]) porVendedor[v] = {gral:0,acc:0,marcas:0,valijas18:0,total:0};
+    porVendedor[v].gral      += p.gral;
+    porVendedor[v].acc       += p.acc;
+    porVendedor[v].marcas    += p.marcas;
+    porVendedor[v].valijas18 += p.valijas18;
+    porVendedor[v].total     += p.total;
+  });
+  return Object.entries(porVendedor)
+    .map(([vendedor,p])=>({vendedor,...p}))
+    .sort((a,b)=>b.total-a.total);
+}
+
 export default function App(){
   const [roles,setRoles]   = useState(null);
   const [auth,setAuth]     = useState(null);
@@ -272,7 +309,7 @@ export default function App(){
   };
 
   const tabs=[];
-  ["diario","montos","metricas","clima","ranking"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
+  ["diario","montos","metricas","clima","ranking","vendedores"].forEach(v=>{ if(misVistas.includes(v)) tabs.push(v); });
   if(isAdmin) tabs.push("usuarios");
 
   return (
@@ -320,6 +357,7 @@ export default function App(){
           {data&&!loading&&vista==="metricas"  && misVistas.includes("metricas") && <Metricas data={data} fecha={fecha} auth={auth} c={c}/>}
           {data&&!loading&&vista==="clima"     && misVistas.includes("clima")    && <Clima data={data} c={c}/>}
           {data&&!loading&&vista==="ranking"   && misVistas.includes("ranking")  && <Ranking fecha={fecha} auth={auth} c={c}/>}
+          {data&&!loading&&vista==="vendedores"&& misVistas.includes("vendedores")&& <Vendedores fecha={fecha} auth={auth} c={c}/>}
           {vista==="usuarios" && isAdmin && roles && <AdminPanel roles={roles} setRoles={setRoles} c={c}/>}
         </div>
 
@@ -493,6 +531,73 @@ function Ranking({fecha,auth,c}){
 function RankingLocalTabla({fecha,sucursal,c}){
   const fuente = useCallback(()=>getRankingVendedores(fecha,sucursal),[fecha,sucursal]);
   return <RankingTabla titulo={`Ranking vendedores — ${sucursal}`} fuente={fuente} incluirLocal={false} c={c}/>;
+}
+
+// Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
+function PuntosTabla({titulo,fuente,c}){
+  const [filas,setFilas] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setFilas(null);
+    fuente().then(r=>{ if(activo){ setFilas(r); setEst("ok"); } })
+      .catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[fuente]);
+
+  return (
+    <div style={c.card}>
+      <div style={{...c.lbl,marginBottom:10}}>{titulo}</div>
+      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
+      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
+      {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
+      {est==="ok" && filas && filas.length>0 && (
+        <div style={{maxHeight:420,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+              <td style={{padding:"7px 8px"}}>#</td>
+              <td style={{padding:"7px 8px"}}>Vendedor</td>
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Gral</td>
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Acc</td>
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Marcas</td>
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Val. 18"</td>
+              <td style={{padding:"7px 8px",textAlign:"right"}}>Total</td>
+            </tr></thead>
+            <tbody>
+              {filas.map((v,i)=>(
+                <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
+                  <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
+                  <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
+                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.gral)}</td>
+                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.acc)}</td>
+                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.marcas)}</td>
+                  <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.valijas18)}</td>
+                  <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#facc15"}}>{fmt(v.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+function PuntosTablaWrap({fecha,sucursal,c}){
+  const fuente = useCallback(()=>getPuntosVendedores(fecha,sucursal),[fecha,sucursal]);
+  return <PuntosTabla titulo={`Puntos vendedores — ${sucursal}`} fuente={fuente} c={c}/>;
+}
+function Vendedores({fecha,auth,c}){
+  const esEncargado = auth.role === "encargado";
+  const miSuc = auth.sucursal;
+  return esEncargado ? (
+    <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
+  ) : (
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
+      {SUCURSALES.map(s=>(
+        <PuntosTablaWrap key={s} fecha={fecha} sucursal={s} c={c}/>
+      ))}
+    </div>
+  );
 }
 
 function Diario({data,fecha,auth,c}){
@@ -753,7 +858,7 @@ function RolesPanel({roles,setRoles,c}){
           <div style={{marginBottom:12,opacity:cfg.fijo?0.5:1,pointerEvents:cfg.fijo?"none":"auto"}}>
             <div style={c.lbl}>Vistas permitidas</div>
             <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-              {["diario","montos","metricas","clima","ranking"].map(v=>(
+              {["diario","montos","metricas","clima","ranking","vendedores"].map(v=>(
                 <label key={v} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer",color:"#cbd5e1"}}>
                   <input type="checkbox" checked={cfg.vistas.includes(v)} onChange={()=>toggle(rol,"vista",v)} disabled={cfg.fijo}/>
                   {VISTAS_INFO[v].icon} {VISTAS_INFO[v].label}
