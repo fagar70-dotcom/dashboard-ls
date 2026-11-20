@@ -3,7 +3,7 @@ import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser,
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
 const SUC_COLORS = { "24SET":"#4ade80","MENDO":"#60a5fa","MUÑE":"#facc15","SAL":"#f87171" };
-const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"}, ranking:{icon:"🏆",label:"Ranking"}, vendedores:{icon:"🎯",label:"Ranking"} };
+const VISTAS_INFO = { diario:{icon:"📅",label:"Diario"}, montos:{icon:"💰",label:"Montos"}, metricas:{icon:"📈",label:"Métricas"}, clima:{icon:"⛅",label:"Clima"}, ranking:{icon:"🏆",label:"Ranking"}, vendedores:{icon:"🏆",label:"Ranking"} };
 const CIUDADES = {
   "Tucumán": { lat:-26.8241, lon:-65.2226, sucs:["24SET","MENDO","MUÑE"] },
   "Salta":   { lat:-24.7859, lon:-65.4117, sucs:["SAL"] },
