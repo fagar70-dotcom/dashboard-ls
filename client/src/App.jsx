@@ -120,9 +120,16 @@ async function getMontosSuc(fecha, suc){
   const raw = res?.texto || res?.raw || (typeof res==="string"?res:"");
   return parseMontos(raw);
 }
-async function getRankingVendedores(fecha, sucursal){
-  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
-  const filas = res?.detalle_ventas?.filas || res?.filas || [];
+// Trae el detalle de ventas CRUDO de todas las sucursales en una sola llamada (tal como
+// recomienda la API: "una llamada por día"). Tanto Ranking como Vendedores arman sus
+// distintas tablas (por sucursal, top 10, etc.) a partir de este mismo array en memoria,
+// en vez de pedirle al servidor una consulta por cada tabla.
+async function getDetalleVentasCrudo(fecha){
+  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:"" });
+  return res?.detalle_ventas?.filas || res?.filas || [];
+}
+function calcularRankingDesdeFilas(filasCrudas, sucursalFiltro){
+  const filas = sucursalFiltro ? filasCrudas.filter(f=>(f.sucursal||"").toString().trim()===sucursalFiltro) : filasCrudas;
   const porVendedor = {};       // vendedor -> unidades totales
   const porVendedorSuc = {};    // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
   filas.forEach(f=>{
@@ -173,9 +180,8 @@ function agregarPorArticulo(lineas){
     .map(([articulo,cantidad])=>({articulo,cantidad}))
     .sort((a,b)=>b.cantidad-a.cantidad);
 }
-async function getPuntosVendedores(fecha, sucursal){
-  const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
-  const filas = res?.detalle_ventas?.filas || res?.filas || [];
+function calcularPuntosDesdeFilas(filasCrudas, sucursalFiltro){
+  const filas = sucursalFiltro ? filasCrudas.filter(f=>(f.sucursal||"").toString().trim()===sucursalFiltro) : filasCrudas;
   const porVendedor = {};
   const porVendedorSuc = {};    // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
   const porVendedorLineas = {}; // vendedor -> { gral:[], acc:[], marcas:[], valijas18:[] } líneas crudas
@@ -504,24 +510,12 @@ function ClimaResumen({ciudad,fecha,c}){
 
 // Tabla genérica de ranking de vendedores por unidades. Si incluirLocal=true muestra
 // columna "Local" (para el ranking global, que mezcla vendedores de distintas sucursales).
-function RankingTabla({titulo,fuente,incluirLocal,c}){
-  const [filas,setFilas] = useState(null);
-  const [est,setEst] = useState("cargando");
-  useEffect(()=>{
-    let activo=true;
-    setEst("cargando"); setFilas(null);
-    fuente().then(r=>{ if(activo){ setFilas(r); setEst("ok"); } })
-      .catch(()=>{ if(activo) setEst("error"); });
-    return ()=>{ activo=false; };
-  },[fuente]);
-
+function RankingTabla({titulo,filas,incluirLocal,c}){
   return (
     <div style={c.card}>
       <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
-      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
-      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
-      {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
-      {est==="ok" && filas && filas.length>0 && (
+      {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
+      {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
@@ -550,29 +544,34 @@ function RankingTabla({titulo,fuente,incluirLocal,c}){
 function Ranking({fecha,auth,c}){
   const esEncargado = auth.role === "encargado";
   const miSuc = auth.sucursal;
-  const fuenteTop10 = useCallback(()=>getRankingVendedores(fecha,"").then(r=>r.slice(0,10)),[fecha]);
+  const [filasCrudas,setFilasCrudas] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setFilasCrudas(null);
+    getDetalleVentasCrudo(fecha).then(r=>{ if(activo){ setFilasCrudas(r); setEst("ok"); } })
+      .catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[fecha]);
+
+  if(est==="cargando") return <div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando…</div>;
+  if(est==="error") return <div style={{fontSize:12,color:"#fca5a5",padding:"1rem"}}>No se pudo obtener el detalle de ventas.</div>;
+
+  const sucursalesAMostrar = esEncargado ? [miSuc] : SUCURSALES;
+  const top10 = calcularRankingDesdeFilas(filasCrudas,"").slice(0,10);
 
   return (
     <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
       <div style={{flex:"1 1 320px",minWidth:280,display:"flex",flexDirection:"column",gap:12}}>
-        {esEncargado ? (
-          <RankingLocalTabla fecha={fecha} sucursal={miSuc} c={c}/>
-        ) : (
-          SUCURSALES.map(s=>(
-            <RankingLocalTabla key={s} fecha={fecha} sucursal={s} c={c}/>
-          ))
-        )}
+        {sucursalesAMostrar.map(s=>(
+          <RankingTabla key={s} titulo={`Ranking vendedores — ${s}`} filas={calcularRankingDesdeFilas(filasCrudas,s)} incluirLocal={false} c={c}/>
+        ))}
       </div>
       <div style={{flex:"1 1 320px",minWidth:280}}>
-        <RankingTabla titulo="Top 10 vendedores — todas las sucursales" fuente={fuenteTop10} incluirLocal={true} c={c}/>
+        <RankingTabla titulo="Top 10 vendedores — todas las sucursales" filas={top10} incluirLocal={true} c={c}/>
       </div>
     </div>
   );
-}
-// Wrapper para poder usar useCallback con una key distinta por sucursal (admin ve las 4, encargado solo la suya).
-function RankingLocalTabla({fecha,sucursal,c}){
-  const fuente = useCallback(()=>getRankingVendedores(fecha,sucursal),[fecha,sucursal]);
-  return <RankingTabla titulo={`Ranking vendedores — ${sucursal}`} fuente={fuente} incluirLocal={false} c={c}/>;
 }
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
@@ -616,18 +615,9 @@ function TipDetalle({tip,onEnter,onLeave}){
   );
 }
 
-function PuntosTabla({titulo,fuente,incluirLocal,c}){
-  const [filas,setFilas] = useState(null);
-  const [est,setEst] = useState("cargando");
+function PuntosTabla({titulo,filas,incluirLocal,c}){
   const [tip,setTip] = useState(null);
   const hideTimer = useRef(null);
-  useEffect(()=>{
-    let activo=true;
-    setEst("cargando"); setFilas(null);
-    fuente().then(r=>{ if(activo){ setFilas(r); setEst("ok"); } })
-      .catch(()=>{ if(activo) setEst("error"); });
-    return ()=>{ activo=false; };
-  },[fuente]);
   useEffect(()=>()=>{ if(hideTimer.current) clearTimeout(hideTimer.current); },[]);
 
   function cancelarOcultar(){ if(hideTimer.current){ clearTimeout(hideTimer.current); hideTimer.current=null; } }
@@ -659,10 +649,8 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
   return (
     <div style={c.card}>
       <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
-      {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
-      {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
-      {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
-      {est==="ok" && filas && filas.length>0 && (
+      {filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
+      {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
@@ -696,14 +684,18 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
     </div>
   );
 }
-function PuntosTablaWrap({fecha,sucursal,c}){
-  const fuente = useCallback(()=>getPuntosVendedores(fecha,sucursal),[fecha,sucursal]);
-  return <PuntosTabla titulo={`Puntos vendedores — ${sucursal}`} fuente={fuente} incluirLocal={false} c={c}/>;
-}
 function Vendedores({fecha,auth,c}){
   const esEncargado = auth.role === "encargado";
   const miSuc = auth.sucursal;
-  const fuenteTop10Puntos = useCallback(()=>getPuntosVendedores(fecha,"").then(r=>r.slice(0,10)),[fecha]);
+  const [filasCrudas,setFilasCrudas] = useState(null);
+  const [est,setEst] = useState("cargando");
+  useEffect(()=>{
+    let activo=true;
+    setEst("cargando"); setFilasCrudas(null);
+    getDetalleVentasCrudo(fecha).then(r=>{ if(activo){ setFilasCrudas(r); setEst("ok"); } })
+      .catch(()=>{ if(activo) setEst("error"); });
+    return ()=>{ activo=false; };
+  },[fecha]);
 
   const encabezadoFecha = (
     <div style={{...c.card,marginBottom:12,background:"#1e2536",borderColor:"#475569",display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
@@ -712,21 +704,27 @@ function Vendedores({fecha,auth,c}){
     </div>
   );
 
+  if(est==="cargando") return (<>{encabezadoFecha}<div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando…</div></>);
+  if(est==="error") return (<>{encabezadoFecha}<div style={{fontSize:12,color:"#fca5a5",padding:"1rem"}}>No se pudo obtener el detalle de ventas.</div></>);
+
+  const sucursalesAMostrar = esEncargado ? [miSuc] : SUCURSALES;
+  const top10 = calcularPuntosDesdeFilas(filasCrudas,"").slice(0,10);
+
   return (<>
     {encabezadoFecha}
     {esEncargado ? (
       <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
         <div style={{flex:"1 1 320px",minWidth:280}}>
-          <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
+          <PuntosTabla titulo={`Puntos vendedores — ${miSuc}`} filas={calcularPuntosDesdeFilas(filasCrudas,miSuc)} incluirLocal={false} c={c}/>
         </div>
         <div style={{flex:"1 1 320px",minWidth:280}}>
-          <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" fuente={fuenteTop10Puntos} incluirLocal={true} c={c}/>
+          <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" filas={top10} incluirLocal={true} c={c}/>
         </div>
       </div>
     ) : (
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
-        {SUCURSALES.map(s=>(
-          <PuntosTablaWrap key={s} fecha={fecha} sucursal={s} c={c}/>
+        {sucursalesAMostrar.map(s=>(
+          <PuntosTabla key={s} titulo={`Puntos vendedores — ${s}`} filas={calcularPuntosDesdeFilas(filasCrudas,s)} incluirLocal={false} c={c}/>
         ))}
       </div>
     )}
