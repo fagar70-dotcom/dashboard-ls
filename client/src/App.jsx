@@ -517,7 +517,7 @@ function RankingTabla({titulo,fuente,incluirLocal,c}){
 
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:10,color:"#94a3b8",fontSize:12,fontWeight:600}}>{titulo}</div>
+      <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
       {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
       {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
@@ -628,7 +628,7 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
 
   return (
     <div style={c.card}>
-      <div style={{...c.lbl,marginBottom:10,color:"#94a3b8",fontSize:12,fontWeight:600}}>{titulo}</div>
+      <div style={{...c.lbl,marginBottom:10,color:"#f1f5f9",fontSize:13,fontWeight:700,textTransform:"none",letterSpacing:"normal"}}>{titulo}</div>
       {est==="cargando" && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Cargando…</div>}
       {est==="error" && <div style={{fontSize:12,color:"#fca5a5",padding:"6px 0"}}>No se pudo obtener el detalle de ventas.</div>}
       {est==="ok" && filas && filas.length===0 && <div style={{fontSize:12,color:"#64748b",padding:"6px 0"}}>Sin datos para hoy.</div>}
