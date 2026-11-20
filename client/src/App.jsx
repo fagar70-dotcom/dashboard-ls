@@ -123,15 +123,26 @@ async function getMontosSuc(fecha, suc){
 async function getTopVendedores(fecha){
   const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:"" });
   const filas = res?.detalle_ventas?.filas || res?.filas || [];
-  const porVendedor = {};
+  const porVendedor = {};       // vendedor -> unidades totales
+  const porVendedorSuc = {};    // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
   filas.forEach(f=>{
     const v = (f.vendedor||"").toString().trim();
     if(!v) return;
     const cant = Number(f.cantidad)||0;
+    const suc = (f.sucursal||"").toString().trim();
     porVendedor[v] = (porVendedor[v]||0) + cant;
+    if(suc){
+      porVendedorSuc[v] = porVendedorSuc[v] || {};
+      porVendedorSuc[v][suc] = (porVendedorSuc[v][suc]||0) + cant;
+    }
   });
+  const sucursalDe = (v)=>{
+    const m = porVendedorSuc[v];
+    if(!m) return "";
+    return Object.entries(m).sort((a,b)=>b[1]-a[1])[0][0]; // local donde más vendió ese día
+  };
   return Object.entries(porVendedor)
-    .map(([vendedor,unidades])=>({vendedor,unidades}))
+    .map(([vendedor,unidades])=>({vendedor,unidades,sucursal:sucursalDe(vendedor)}))
     .sort((a,b)=>b.unidades-a.unidades)
     .slice(0,5);
 }
@@ -433,6 +444,7 @@ function TopVendedores({fecha,c}){
           <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
             <td style={{padding:"7px 8px"}}>#</td>
             <td style={{padding:"7px 8px"}}>Vendedor</td>
+            <td style={{padding:"7px 8px"}}>Local</td>
             <td style={{padding:"7px 8px",textAlign:"right"}}>Unidades</td>
           </tr></thead>
           <tbody>
@@ -440,6 +452,7 @@ function TopVendedores({fecha,c}){
               <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
                 <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
                 <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
+                <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>
                 <td style={{padding:"9px 8px",textAlign:"right",fontWeight:700,fontSize:16,color:"#4ade80"}}>{fmt(v.unidades)}</td>
               </tr>
             ))}
