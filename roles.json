@@ -6,7 +6,7 @@
     "fijo": true
   },
   "encargado": {
-    "vistas": ["diario", "ranking", "vendedores"],
+    "vistas": ["diario", "vendedores"],
     "verMontos": false,
     "label": "Encargado"
   }
