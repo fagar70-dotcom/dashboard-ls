@@ -605,7 +605,7 @@ function TipDetalle({tip,onClose}){
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:6}}>
         <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.05em"}}>{tip.titulo}</div>
         {/* En celular no hay tecla ESC: este botón permite cerrar el desplegable tocándolo. */}
-        <button onClick={onClose} style={{background:"transparent",border:"none",color:"#64748b",fontSize:15,lineHeight:1,padding:"0 2px",cursor:"pointer",flexShrink:0}}>✕</button>
+        <button onClick={onClose} style={{background:"transparent",border:"none",color:"#f87171",fontSize:20,fontWeight:700,lineHeight:1,padding:"0 2px",cursor:"pointer",flexShrink:0}}>✕</button>
       </div>
       {tip.items.map((it,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12,padding:"3px 0",borderTop:i>0?"1px solid #1e293b":"none"}}>
