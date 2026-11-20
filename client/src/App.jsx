@@ -1020,6 +1020,19 @@ function RolesPanel({roles,setRoles,c}){
   );
 }
 
+// Orden estable para la lista: admin primero, luego por sucursal (24SET→MENDO→MUÑE→SAL),
+// y a igualdad de sucursal por nombre visible. Así no depende del orden del archivo,
+// que se desordena con cada alta/edición.
+function ordenUsuarios(users){
+  return Object.entries(users).sort(([ka,ua],[kb,ub])=>{
+    if(ua.role==="admin" && ub.role!=="admin") return -1;
+    if(ub.role==="admin" && ua.role!=="admin") return 1;
+    const ia = SUCURSALES.indexOf(ua.sucursal), ib = SUCURSALES.indexOf(ub.sucursal);
+    if(ia!==ib) return ia-ib;
+    return (ua.label||ka).localeCompare(ub.label||kb);
+  });
+}
+
 function UsuariosPanel({roles,users,setUsers,c}){
   const [editing,setEditing]=useState(null);
   const [form,setForm]=useState(null);
@@ -1027,6 +1040,7 @@ function UsuariosPanel({roles,users,setUsers,c}){
   const [movil,setMovil]=useState(typeof window!=="undefined" && window.innerWidth<700);
   useEffect(()=>{ const f=()=>setMovil(window.innerWidth<700); window.addEventListener("resize",f); return ()=>window.removeEventListener("resize",f); },[]);
   if(!users) return <div style={{color:"#64748b",fontSize:13}}>Cargando usuarios…</div>;
+  const listaUsuarios = ordenUsuarios(users);
 
   function startNew(){ setEditing("__new__"); setForm({user:"",pass:"",role:"encargado",sucursal:"24SET",label:""}); setVerP(false); }
   function startEdit(u){ setEditing(u); setForm({user:u,...users[u],pass:""}); setVerP(false); }
@@ -1092,7 +1106,7 @@ function UsuariosPanel({roles,users,setUsers,c}){
 
       {movil ? (
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {Object.entries(users).map(([k,u])=>{
+          {listaUsuarios.map(([k,u])=>{
             const cfg=roles[u.role]||{};
             return (
               <div key={k} style={{...c.card,padding:12}}>
@@ -1124,7 +1138,7 @@ function UsuariosPanel({roles,users,setUsers,c}){
               <td style={{padding:"8px"}}>Vistas (del rol)</td><td style={{padding:"8px"}}>Montos</td><td style={{padding:"8px",textAlign:"right"}}>Acciones</td>
             </tr></thead>
             <tbody>
-              {Object.entries(users).map(([k,u])=>{
+              {listaUsuarios.map(([k,u])=>{
                 const cfg=roles[u.role]||{};
                 return (
                   <tr key={k} style={{borderTop:"1px solid #0f172a"}}>
