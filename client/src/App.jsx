@@ -722,7 +722,6 @@ function Vendedores({fecha,auth,c}){
   if(est==="cargando") return (<>{encabezadoFecha}<div style={{textAlign:"center",padding:"3rem",color:"#475569",fontSize:13}}>Cargando…</div></>);
   if(est==="error") return (<>{encabezadoFecha}<div style={{fontSize:12,color:"#fca5a5",padding:"1rem"}}>No se pudo obtener el detalle de ventas.</div></>);
 
-  const sucursalesAMostrar = esEncargado ? [miSuc] : SUCURSALES;
   const top10 = calcularPuntosDesdeFilas(filasCrudas,"").slice(0,10);
 
   return (<>
@@ -738,9 +737,7 @@ function Vendedores({fecha,auth,c}){
       </div>
     ) : (
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
-        {sucursalesAMostrar.map(s=>(
-          <PuntosTabla key={s} titulo={`Puntos vendedores — ${s}`} filas={calcularPuntosDesdeFilas(filasCrudas,s)} incluirLocal={false} c={c}/>
-        ))}
+        <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" filas={top10} incluirLocal={true} c={c}/>
       </div>
     )}
   </>);
