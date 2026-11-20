@@ -167,6 +167,7 @@ async function getPuntosVendedores(fecha, sucursal){
   const res = await fetchVentas({ action:"detalle_ventas", fecha_desde:fecha, fecha_fin:fecha, sucursales:sucursal||"" });
   const filas = res?.detalle_ventas?.filas || res?.filas || [];
   const porVendedor = {};
+  const porVendedorSuc = {}; // vendedor -> { sucursal: unidades } (para saber a qué local pertenece)
   filas.forEach(f=>{
     const v = (f.vendedor||"").toString().trim();
     if(!v) return;
@@ -177,9 +178,19 @@ async function getPuntosVendedores(fecha, sucursal){
     porVendedor[v].marcas    += p.marcas;
     porVendedor[v].valijas18 += p.valijas18;
     porVendedor[v].total     += p.total;
+    const suc = (f.sucursal||"").toString().trim();
+    if(suc){
+      porVendedorSuc[v] = porVendedorSuc[v] || {};
+      porVendedorSuc[v][suc] = (porVendedorSuc[v][suc]||0) + (Number(f.cantidad)||0);
+    }
   });
+  const sucursalDe = (v)=>{
+    const m = porVendedorSuc[v];
+    if(!m) return "";
+    return Object.entries(m).sort((a,b)=>b[1]-a[1])[0][0]; // local donde más vendió ese día
+  };
   return Object.entries(porVendedor)
-    .map(([vendedor,p])=>({vendedor,...p}))
+    .map(([vendedor,p])=>({vendedor,...p,sucursal:sucursalDe(vendedor)}))
     .sort((a,b)=>b.total-a.total);
 }
 
@@ -534,7 +545,7 @@ function RankingLocalTabla({fecha,sucursal,c}){
 }
 
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
-function PuntosTabla({titulo,fuente,c}){
+function PuntosTabla({titulo,fuente,incluirLocal,c}){
   const [filas,setFilas] = useState(null);
   const [est,setEst] = useState("cargando");
   useEffect(()=>{
@@ -557,6 +568,7 @@ function PuntosTabla({titulo,fuente,c}){
             <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
+              {incluirLocal && <td style={{padding:"7px 8px"}}>Local</td>}
               <td style={{padding:"7px 8px",textAlign:"right"}}>Gral</td>
               <td style={{padding:"7px 8px",textAlign:"right"}}>Acc</td>
               <td style={{padding:"7px 8px",textAlign:"right"}}>Marcas</td>
@@ -568,6 +580,7 @@ function PuntosTabla({titulo,fuente,c}){
                 <tr key={v.vendedor} style={{borderTop:"1px solid #0f172a"}}>
                   <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
                   <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
+                  {incluirLocal && <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>}
                   <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.gral)}</td>
                   <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.acc)}</td>
                   <td style={{padding:"9px 8px",textAlign:"right",color:"#94a3b8"}}>{fmt(v.marcas)}</td>
@@ -584,13 +597,22 @@ function PuntosTabla({titulo,fuente,c}){
 }
 function PuntosTablaWrap({fecha,sucursal,c}){
   const fuente = useCallback(()=>getPuntosVendedores(fecha,sucursal),[fecha,sucursal]);
-  return <PuntosTabla titulo={`Puntos vendedores — ${sucursal}`} fuente={fuente} c={c}/>;
+  return <PuntosTabla titulo={`Puntos vendedores — ${sucursal}`} fuente={fuente} incluirLocal={false} c={c}/>;
 }
 function Vendedores({fecha,auth,c}){
   const esEncargado = auth.role === "encargado";
   const miSuc = auth.sucursal;
+  const fuenteTop10Puntos = useCallback(()=>getPuntosVendedores(fecha,"").then(r=>r.slice(0,10)),[fecha]);
+
   return esEncargado ? (
-    <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
+    <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <div style={{flex:"1 1 320px",minWidth:280}}>
+        <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
+      </div>
+      <div style={{flex:"1 1 320px",minWidth:280}}>
+        <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" fuente={fuenteTop10Puntos} incluirLocal={true} c={c}/>
+      </div>
+    </div>
   ) : (
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
       {SUCURSALES.map(s=>(
