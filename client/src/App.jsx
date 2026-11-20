@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { login as apiLogin, setToken, fetchVentas, getUsers, getRoles, saveUser, removeUser, saveRole, fetchVariaciones } from "./api";
 
 const SUCURSALES = ["24SET","MENDO","MUÑE","SAL"];
@@ -578,11 +578,31 @@ function RankingLocalTabla({fecha,sucursal,c}){
 // Tabla de puntos por vendedor (fórmula del skill ranking-vendedores), para una sucursal.
 // Tooltip flotante (position:fixed) con el detalle de artículos de la categoría señalada.
 function TipDetalle({tip}){
+  const ref = useRef(null);
+  const [pos,setPos] = useState(null);
+  useLayoutEffect(()=>{
+    if(!tip || !ref.current){ setPos(null); return; }
+    const el = ref.current;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left = tip.x;
+    if(left + w > vw-8) left = vw-w-8;
+    if(left < 8) left = 8;
+    let top = tip.y;
+    if(top + h > vh-8){
+      top = tip.anchorTop - h - 4; // no entra abajo: lo mostramos arriba del valor
+      if(top < 8) top = 8;
+    }
+    setPos({left,top});
+  },[tip]);
+
   if(!tip) return null;
+  const left = pos ? pos.left : tip.x;
+  const top  = pos ? pos.top  : tip.y;
   return (
-    <div style={{position:"fixed",left:tip.x,top:tip.y,zIndex:1000,pointerEvents:"none",
+    <div ref={ref} style={{position:"fixed",left,top,zIndex:1000,pointerEvents:"none",
       background:"#0f172a",border:"1px solid #334155",borderRadius:8,padding:"8px 10px",
-      minWidth:200,maxWidth:300,boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
+      minWidth:200,maxWidth:300,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 6px 20px rgba(0,0,0,.5)"}}>
       <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:6,letterSpacing:"0.05em"}}>{tip.titulo}</div>
       {tip.items.map((it,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12,padding:"3px 0",borderTop:i>0?"1px solid #1e293b":"none"}}>
@@ -610,12 +630,12 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
     if(!detalle || !detalle.length){ setTip(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
-    setTip({ x, y: rect.bottom+4, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
+    setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo, items: detalle.map(d=>({label:d.articulo,value:`${fmt(d.cantidad)} u`})) });
   }
   function mostrarResumen(e, v){
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(rect.left, (typeof window!=="undefined"?window.innerWidth:1000)-310);
-    setTip({ x, y: rect.bottom+4, titulo:"Total puntos — composición", items:[
+    setTip({ x, y: rect.bottom+4, anchorTop: rect.top, titulo:"Total puntos — composición", items:[
       {label:"Gral", value:`${fmt(v.gral)} pts`},
       {label:"Acc", value:`${fmt(v.acc)} pts`},
       {label:"Marcas", value:`${fmt(v.marcas)} pts`},
@@ -651,11 +671,11 @@ function PuntosTabla({titulo,fuente,incluirLocal,c}){
                   <td style={{padding:"9px 8px",color:"#64748b"}}>{i+1}</td>
                   <td style={{padding:"9px 8px",fontWeight:i===0?700:500,color:"#f1f5f9"}}>{v.vendedor}</td>
                   {incluirLocal && <td style={{padding:"9px 8px"}}>{v.sucursal ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:SUC_COLORS[v.sucursal]||"#64748b"}}/><span style={{color:"#94a3b8"}}>{v.sucursal}</span></span> : <span style={{color:"#475569"}}>—</span>}</td>}
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral)}>{fmt(v.gral)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc)}>{fmt(v.acc)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — MARCAS`,v.detalle?.marcas)}>{fmt(v.marcas)}</td>
-                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18)}>{fmt(v.valijas18)}</td>
-                  <td style={celda(null,"#facc15",700,16)} onMouseEnter={e=>mostrarResumen(e,v)}>{fmt(v.total)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — GRAL (unidades)`,v.detalle?.gral)} onMouseLeave={ocultar}>{fmt(v.gral)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — ACC VIAJE Y BILLETERAS MUJER`,v.detalle?.acc)} onMouseLeave={ocultar}>{fmt(v.acc)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — MARCAS`,v.detalle?.marcas)} onMouseLeave={ocultar}>{fmt(v.marcas)}</td>
+                  <td style={celda(null,"#94a3b8")} onMouseEnter={e=>mostrarDetalle(e,`${v.vendedor} — VALIJAS 18"`,v.detalle?.valijas18)} onMouseLeave={ocultar}>{fmt(v.valijas18)}</td>
+                  <td style={celda(null,"#facc15",700,16)} onMouseEnter={e=>mostrarResumen(e,v)} onMouseLeave={ocultar}>{fmt(v.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -675,22 +695,32 @@ function Vendedores({fecha,auth,c}){
   const miSuc = auth.sucursal;
   const fuenteTop10Puntos = useCallback(()=>getPuntosVendedores(fecha,"").then(r=>r.slice(0,10)),[fecha]);
 
-  return esEncargado ? (
-    <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
-      <div style={{flex:"1 1 320px",minWidth:280}}>
-        <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
-      </div>
-      <div style={{flex:"1 1 320px",minWidth:280}}>
-        <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" fuente={fuenteTop10Puntos} incluirLocal={true} c={c}/>
-      </div>
-    </div>
-  ) : (
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
-      {SUCURSALES.map(s=>(
-        <PuntosTablaWrap key={s} fecha={fecha} sucursal={s} c={c}/>
-      ))}
+  const encabezadoFecha = (
+    <div style={{...c.card,marginBottom:12,background:"#1e2536",borderColor:"#475569",display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+      <div style={{...c.lbl,color:"#94a3b8"}}>Puntos del día</div>
+      <div style={{fontSize:24,fontWeight:800,color:"#f1f5f9"}}>{cap(dayName(fecha))} {fmtDate(fecha)}</div>
     </div>
   );
+
+  return (<>
+    {encabezadoFecha}
+    {esEncargado ? (
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
+        <div style={{flex:"1 1 320px",minWidth:280}}>
+          <PuntosTablaWrap fecha={fecha} sucursal={miSuc} c={c}/>
+        </div>
+        <div style={{flex:"1 1 320px",minWidth:280}}>
+          <PuntosTabla titulo="Top 10 vendedores — puntos (todas las sucursales)" fuente={fuenteTop10Puntos} incluirLocal={true} c={c}/>
+        </div>
+      </div>
+    ) : (
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12}}>
+        {SUCURSALES.map(s=>(
+          <PuntosTablaWrap key={s} fecha={fecha} sucursal={s} c={c}/>
+        ))}
+      </div>
+    )}
+  </>);
 }
 
 function Diario({data,fecha,auth,c}){
