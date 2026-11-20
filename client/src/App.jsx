@@ -518,7 +518,7 @@ function RankingTabla({titulo,filas,incluirLocal,c}){
       {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+            <thead><tr style={{color:"#94a3b8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
               {incluirLocal && <td style={{padding:"7px 8px"}}>Local</td>}
@@ -660,7 +660,7 @@ function PuntosTabla({titulo,filas,incluirLocal,c}){
       {filas.length>0 && (
         <div style={{maxHeight:420,overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead><tr style={{color:"#475569",fontSize:10,textTransform:"uppercase"}}>
+            <thead><tr style={{color:"#94a3b8",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>
               <td style={{padding:"7px 8px"}}>#</td>
               <td style={{padding:"7px 8px"}}>Vendedor</td>
               {incluirLocal && <td style={{padding:"7px 8px"}}>Local</td>}
